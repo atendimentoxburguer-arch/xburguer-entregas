@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-1224';
+  const version = '20260911-1234';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -14,6 +14,7 @@
     .then(() => loadScript(`./confirm-ui.js?v=${version}`))
     .then(() => loadScript(`./system-update.js?v=${version}`))
     .then(() => loadScript(`./closing-summary.js?v=${version}`))
+    .then(() => loadScript(`./ticket-average.js?v=${version}`))
     .catch(error => {
       console.error('[X-Burguer] Erro ao iniciar o sistema:', error);
     });
