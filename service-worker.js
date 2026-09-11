@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v10`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v11`;
 
 const APP_SHELL = [
   './',
@@ -34,6 +34,7 @@ const APP_SHELL = [
   './auth-onboarding.js',
   './performance-mode.js',
   './currency-inputs.js',
+  './change-calculator.js',
   './pwa-app.js',
   './manifest.webmanifest',
   './assets/app-icon-192.png',
