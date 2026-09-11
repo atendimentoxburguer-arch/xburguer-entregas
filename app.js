@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-db-auto1';
+  const version = '20260911-db-live1';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -27,6 +27,8 @@
     }
 
     const complements = [
+      // Impede que o login local antigo libere o sistema quando o Supabase está ativo.
+      'cloud-auth-guard.js',
       'database-prep.js',
       'confirm-ui.js',
       'system-update.js',
@@ -38,9 +40,10 @@
       'payment-confirmation-pro.js',
       'operations-pro.js',
       'closing-history.js',
-      // Mantido por último para envolver o save() definitivo e assumir login/sincronização
-      // somente quando a configuração do Supabase estiver realmente habilitada.
-      'database-cloud.js'
+      // Mantido no fim para envolver o save() definitivo, restaurar sessão e sincronizar.
+      'database-cloud.js',
+      // Primeiro acesso e alteração segura de e-mail/senha pelo Supabase Auth.
+      'auth-onboarding.js'
     ];
 
     for (const file of complements) {
