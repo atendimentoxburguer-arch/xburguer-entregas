@@ -15,7 +15,7 @@
     if (!document.querySelector('link[rel="manifest"]')) {
       const manifest = document.createElement('link');
       manifest.rel = 'manifest';
-      manifest.href = './manifest.webmanifest?v=20260911-1518';
+      manifest.href = './manifest.webmanifest?v=20260911-1530';
       document.head.appendChild(manifest);
     }
 
@@ -34,18 +34,25 @@
       document.head.appendChild(meta);
     });
 
-    if (!document.querySelector('link[rel="icon"]')) {
+    const existingIcon = document.querySelector('link[rel="icon"]');
+    if (existingIcon) {
+      existingIcon.href = './assets/app-icon-192.png?v=20260911-1530';
+      existingIcon.type = 'image/png';
+    } else {
       const icon = document.createElement('link');
       icon.rel = 'icon';
-      icon.href = './app-icon.svg?v=20260911-1518';
-      icon.type = 'image/svg+xml';
+      icon.href = './assets/app-icon-192.png?v=20260911-1530';
+      icon.type = 'image/png';
       document.head.appendChild(icon);
     }
 
-    if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+    const existingApple = document.querySelector('link[rel="apple-touch-icon"]');
+    if (existingApple) {
+      existingApple.href = './assets/app-icon-512.png?v=20260911-1530';
+    } else {
       const apple = document.createElement('link');
       apple.rel = 'apple-touch-icon';
-      apple.href = './assets/xburguer-logo.jpg?v=20260911';
+      apple.href = './assets/app-icon-512.png?v=20260911-1530';
       document.head.appendChild(apple);
     }
   }
@@ -138,7 +145,7 @@
 
   async function registerAppWorker() {
     try {
-      await navigator.serviceWorker.register('./service-worker.js?v=20260911-1518', { scope: './' });
+      await navigator.serviceWorker.register('./service-worker.js?v=20260911-1530', { scope: './' });
       if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
     } catch (error) {
       console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
