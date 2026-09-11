@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v3`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v4`;
 
 const APP_SHELL = [
   './',
@@ -11,7 +11,9 @@ const APP_SHELL = [
   './panel-gradients.css',
   './app.js',
   './app-core.js',
+  './supabase-config.js',
   './database-prep.js',
+  './database-cloud.js',
   './confirm-ui.js',
   './system-update.js',
   './closing-summary.js',
@@ -82,9 +84,14 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
+
+  // Nunca intercepta Supabase, autenticação, APIs ou CDNs externas.
+  // Assim respostas do banco não ficam presas no cache do aplicativo.
+  if (!isSameOrigin) return;
+
   const isCode = /\.(?:html?|js|css|webmanifest)$/i.test(url.pathname);
 
-  if (request.mode === 'navigate' || (isSameOrigin && isCode)) {
+  if (request.mode === 'navigate' || isCode) {
     event.respondWith(networkFirst(request));
     return;
   }
