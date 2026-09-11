@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-1325';
+  const version = '20260911-1348';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -24,7 +24,8 @@
       'closing-summary.js',
       'ticket-average.js',
       'system-audit.js',
-      'simple-payment-flow.js'
+      'simple-payment-flow.js',
+      'delivery-edit-plus.js'
     ];
 
     for (const file of complements) {
