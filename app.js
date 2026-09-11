@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-1618';
+  const version = '20260911-1620';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -8,6 +8,11 @@
     script.onload = resolve;
     script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
     document.body.appendChild(script);
+  });
+
+  // Ativa primeiro os recursos de aplicativo instalável/PWA.
+  loadScript(`./pwa-app.js?v=${version}`).catch(error => {
+    console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
   });
 
   async function startSystem() {
