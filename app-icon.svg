@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">X-Burguer Entregas</title>
+  <desc id="desc">Ícone do aplicativo X-Burguer Entregas</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#70040a"/>
+      <stop offset="0.58" stop-color="#a80712"/>
+      <stop offset="1" stop-color="#d21b27"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd86b"/>
+      <stop offset="1" stop-color="#e4ab2e"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#3b0206" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="420" cy="86" r="96" fill="#fff" opacity=".055"/>
+  <circle cx="74" cy="434" r="118" fill="#f4bd3b" opacity=".08"/>
+  <g filter="url(#shadow)">
+    <rect x="76" y="86" width="360" height="340" rx="82" fill="#fff8ef"/>
+    <path d="M144 171c0-18 15-33 33-33h158c18 0 33 15 33 33v18H144v-18Z" fill="url(#gold)"/>
+    <path d="M144 318h224v24c0 18-15 33-33 33H177c-18 0-33-15-33-33v-24Z" fill="url(#gold)"/>
+    <path d="M160 214h192c18 0 32 14 32 32s-14 32-32 32H160c-18 0-32-14-32-32s14-32 32-32Z" fill="#a80712"/>
+    <circle cx="187" cy="246" r="9" fill="#fff3cb"/>
+    <circle cx="325" cy="246" r="9" fill="#fff3cb"/>
+    <text x="256" y="304" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="82" font-weight="900" fill="#74040b">XB</text>
+  </g>
+</svg>
