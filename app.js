@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-prod-audit2';
+  const version = '20260911-perf1';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -46,7 +46,9 @@
       // Reserva o número do pedido no Supabase antes de cadastrar, evitando colisões.
       'atomic-delivery-code.js',
       // Produção: somente login existente e alteração segura de credenciais.
-      'auth-onboarding.js'
+      'auth-onboarding.js',
+      // Consolida renderizações e reduz efeitos pesados em notebooks com poucos recursos.
+      'performance-mode.js'
     ];
 
     for (const file of complements) {
