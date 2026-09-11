@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v1`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v2`;
 
 const APP_SHELL = [
   './',
@@ -23,7 +23,8 @@ const APP_SHELL = [
   './closing-history.js',
   './pwa-app.js',
   './manifest.webmanifest',
-  './app-icon.svg',
+  './assets/app-icon-192.png',
+  './assets/app-icon-512.png',
   './assets/xburguer-logo.jpg'
 ];
 
