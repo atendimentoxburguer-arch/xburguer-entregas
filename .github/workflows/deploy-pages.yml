@@ -24,6 +24,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in ./*.js; do
+            node --check "$file"
+          done
+          node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
