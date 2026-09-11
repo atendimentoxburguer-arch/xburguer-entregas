@@ -5,7 +5,9 @@ window.XB_SUPABASE_CONFIG = Object.freeze({
   enabled: true,
   projectUrl: 'https://ayouavnqatbgqrxqweyj.supabase.co',
   publishableKey: 'sb_publishable_Z97XrUmKDX4APac2O8BAuA_Jf1Hx2Vh',
-  autoMigrateLocalData: true,
+  // A migração inicial já foi concluída. Mantê-la desligada impede que um
+  // aparelho antigo reenvie dados locais obsoletos para um banco vazio de propósito.
+  autoMigrateLocalData: false,
   autoSync: true,
   realtime: true,
   provider: 'supabase'
