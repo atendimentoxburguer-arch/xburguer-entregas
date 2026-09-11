@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-perf1';
+  const version = '20260911-currency1';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -48,7 +48,9 @@
       // Produção: somente login existente e alteração segura de credenciais.
       'auth-onboarding.js',
       // Consolida renderizações e reduz efeitos pesados em notebooks com poucos recursos.
-      'performance-mode.js'
+      'performance-mode.js',
+      // Exibe e aceita valores monetários no padrão brasileiro: R$ 32,00.
+      'currency-inputs.js'
     ];
 
     for (const file of complements) {
