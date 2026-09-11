@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-perf2';
+  const version = '20260911-change1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -71,7 +71,9 @@
       'database-cloud-v2.js',
       'atomic-delivery-code.js',
       'auth-onboarding.js',
-      'currency-inputs.js'
+      'currency-inputs.js',
+      // Calcula automaticamente quanto de troco precisa ir com o entregador.
+      'change-calculator.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
