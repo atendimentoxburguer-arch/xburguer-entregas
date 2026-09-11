@@ -145,6 +145,18 @@
     refreshIcons();
   };
 
+  ['deliverySearch', 'statusFilter', 'dateFilter'].forEach(id => {
+    const control = document.getElementById(id);
+    if (!control) return;
+    const eventName = id === 'deliverySearch' ? 'input' : 'change';
+    control.addEventListener(eventName, () => {
+      setTimeout(() => {
+        updateDeliveriesAfterRender();
+        refreshIcons();
+      }, 0);
+    });
+  });
+
   const previousRenderClosing = renderClosing;
   renderClosing = function xbSimplePaymentRenderClosing() {
     previousRenderClosing();
