@@ -1,66 +1,119 @@
 (() => {
-  const version = '20260911-currency1';
+  const version = '20260911-perf2';
 
-  const loadScript = src => new Promise((resolve, reject) => {
+  const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
-    script.async = false;
-    script.onload = resolve;
+    script.async = !ordered;
+    script.onload = () => resolve(src);
     script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
     document.body.appendChild(script);
   });
 
-  // Ativa primeiro os recursos de aplicativo instalável/PWA.
-  loadScript(`./pwa-app.js?v=${version}`).catch(error => {
+  // Insere todos os scripts imediatamente para que o navegador baixe em paralelo.
+  // async=false mantém a ordem de execução, preservando as dependências existentes.
+  async function loadOrderedGroup(files, label = 'módulo') {
+    const results = await Promise.allSettled(
+      files.map(file => loadScript(`./${file}?v=${version}`, true))
+    );
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`[X-Burguer] Não foi possível carregar ${label} ${files[index]}:`, result.reason);
+      }
+    });
+    return results.every(result => result.status === 'fulfilled');
+  }
+
+  // PWA não bloqueia o carregamento do painel.
+  loadScript(`./pwa-app.js?v=${version}`, false).catch(error => {
     console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
   });
 
+  const waitForIdle = () => new Promise(resolve => {
+    const runner = window.XBPerformance?.runWhenIdle;
+    if (typeof runner === 'function') {
+      runner(() => resolve());
+      return;
+    }
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => resolve(), { timeout: 1200 });
+      return;
+    }
+    setTimeout(resolve, 80);
+  });
+
   async function startSystem() {
-    try {
-      await loadScript(`./supabase-config.js?v=${version}`);
-      await loadScript(`./app-core.js?v=${version}`);
-    } catch (error) {
-      console.error('[X-Burguer] Falha crítica ao carregar o núcleo do sistema:', error);
+    const coreReady = await loadOrderedGroup([
+      'supabase-config.js',
+      'app-core.js'
+    ], 'núcleo');
+
+    if (!coreReady) {
+      console.error('[X-Burguer] Falha crítica ao carregar o núcleo do sistema.');
       return;
     }
 
-    const complements = [
+    // Recursos indispensáveis entram primeiro. O modo de desempenho é ativado
+    // cedo para que os módulos seguintes já inicializem com menos renderizações.
+    const essential = [
       'cloud-auth-guard.js',
       'database-prep.js',
+      'performance-mode.js',
       'confirm-ui.js',
-      // Contrato de produção: dados, restauração, status de nuvem e ações críticas.
       'system-production-v2.js',
       'system-update.js',
       'closing-summary.js',
-      'ticket-average.js',
       'system-audit.js',
       'simple-payment-flow.js',
       'delivery-edit-plus.js',
       'payment-confirmation-pro.js',
-      'operations-pro.js',
-      'closing-history.js',
-      // Corrige fluxos legados, backup, recuperação e dados residuais antes da nuvem.
       'production-hardening.js',
-      // Sincronização por registro, fila offline e conciliação segura entre aparelhos.
       'database-cloud-v2.js',
-      // Reserva o número do pedido no Supabase antes de cadastrar, evitando colisões.
       'atomic-delivery-code.js',
-      // Produção: somente login existente e alteração segura de credenciais.
       'auth-onboarding.js',
-      // Consolida renderizações e reduz efeitos pesados em notebooks com poucos recursos.
-      'performance-mode.js',
-      // Exibe e aceita valores monetários no padrão brasileiro: R$ 32,00.
       'currency-inputs.js'
     ];
 
-    for (const file of complements) {
-      try {
-        await loadScript(`./${file}?v=${version}`);
-      } catch (error) {
-        console.error(`[X-Burguer] Não foi possível carregar ${file}:`, error);
+    await loadOrderedGroup(essential, 'recurso');
+
+    // Painéis gerenciais e históricos são úteis, mas não precisam atrasar login,
+    // banco, cadastro de entrega ou conferência de pagamento. São carregados um
+    // a um quando o navegador estiver ocioso após a sessão estar pronta.
+    const deferred = [
+      'ticket-average.js',
+      'operations-pro.js',
+      'closing-history.js'
+    ];
+
+    let deferredStarted = false;
+    async function loadDeferredEnhancements() {
+      if (deferredStarted) return;
+      deferredStarted = true;
+
+      for (const file of deferred) {
+        await waitForIdle();
+        try {
+          await loadScript(`./${file}?v=${version}`, true);
+        } catch (error) {
+          console.error(`[X-Burguer] Não foi possível carregar recurso adicional ${file}:`, error);
+        }
       }
+
+      if (typeof renderAll === 'function' && !document.hidden) renderAll();
+      window.dispatchEvent(new CustomEvent('xb:enhancements-ready'));
     }
+
+    window.addEventListener('xb:cloud-ready', loadDeferredEnhancements, { once: true });
+
+    // Cobre restauração de sessão extremamente rápida, caso o evento tenha sido
+    // emitido antes do listener acima ser instalado.
+    setTimeout(() => {
+      const appVisible = !document.getElementById('appView')?.classList.contains('hidden');
+      if (appVisible || window.XBCloud?.state?.connected) loadDeferredEnhancements();
+    }, 1600);
   }
 
-  startSystem();
+  startSystem().catch(error => {
+    console.error('[X-Burguer] Falha ao iniciar o sistema:', error);
+  });
 })();
