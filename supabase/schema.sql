@@ -43,13 +43,11 @@ create table if not exists public.deliveries (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (user_id, id),
-  unique (user_id, code),
-  constraint deliveries_courier_fk
-    foreign key (user_id, courier_id)
-    references public.couriers(user_id, id)
-    on update cascade
-    on delete set null
+  unique (user_id, code)
 );
+
+-- courier_id é mantido como referência histórica em texto de propósito.
+-- Assim, remover/inativar um entregador não apaga nem bloqueia entregas antigas.
 
 create table if not exists public.daily_closings (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -63,6 +61,13 @@ create table if not exists public.daily_closings (
   updated_at timestamptz not null default now(),
   primary key (user_id, date)
 );
+
+create index if not exists deliveries_user_created_idx
+  on public.deliveries (user_id, created_at desc);
+create index if not exists deliveries_user_status_idx
+  on public.deliveries (user_id, status);
+create index if not exists deliveries_user_courier_idx
+  on public.deliveries (user_id, courier_id);
 
 -- Mantém updated_at consistente sem depender do navegador.
 create or replace function public.xb_set_updated_at()
