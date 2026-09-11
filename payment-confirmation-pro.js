@@ -18,6 +18,7 @@
 
     const orderValue = valueOf(item.orderValue);
     const changeFor = getChangeFor(item) ? valueOf(getChangeFor(item)) : 0;
+    const changeDue = item.payment === 'Dinheiro' && changeFor >= orderValue ? changeFor - orderValue : 0;
     const person = courier(item.courierId);
 
     if (orderValue <= 0) {
@@ -37,10 +38,15 @@
       money(orderValue)
     ];
     if (person?.name) detailParts.push(person.name);
-    if (item.payment === 'Dinheiro' && changeFor) detailParts.push(`Troco para ${money(changeFor)}`);
+    if (item.payment === 'Dinheiro' && changeFor) {
+      detailParts.push(`Troco para ${money(changeFor)}`);
+      detailParts.push(`Levar ${money(changeDue)} de troco`);
+    }
 
     const warning = person
-      ? 'Depois de confirmar, o pedido será marcado como entregue e entrará no fechamento do dia.'
+      ? (item.payment === 'Dinheiro' && changeFor
+          ? `Separe ${money(changeDue)} de troco para o entregador. Depois de confirmar, o pedido será marcado como entregue e entrará no fechamento do dia.`
+          : 'Depois de confirmar, o pedido será marcado como entregue e entrará no fechamento do dia.')
       : 'Atenção: este pedido está sem entregador definido. Ele será entregue e ficará separado no fechamento por entregador.';
 
     const ok = typeof window.xbConfirm === 'function'
