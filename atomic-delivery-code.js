@@ -16,7 +16,7 @@
     else console.info(`[X-Burguer] ${message}`);
   }
 
-  async function waitForCloud(timeoutMs = 10000) {
+  async function waitForCloud(timeoutMs = 15000) {
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
       const cloud = window.XBCloud;
@@ -27,9 +27,7 @@
   }
 
   async function reserveDeliveryCode() {
-    if (!navigator.onLine) {
-      throw new Error('OFFLINE_CODE_RESERVATION');
-    }
+    if (!navigator.onLine) throw new Error('OFFLINE_CODE_RESERVATION');
 
     const cloud = await waitForCloud();
     if (!cloud?.client) throw new Error('CLOUD_NOT_READY');
@@ -42,9 +40,7 @@
     if (error) throw error;
 
     const code = Number(data);
-    if (!Number.isInteger(code) || code <= 0) {
-      throw new Error('INVALID_RESERVED_CODE');
-    }
+    if (!Number.isInteger(code) || code <= 0) throw new Error('INVALID_RESERVED_CODE');
     return code;
   }
 
@@ -97,15 +93,18 @@
         notes: document.getElementById('deliveryNotes').value.trim(),
         status: 'Aguardando',
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
+        paymentConfirmedAt: ''
       };
 
       db.deliveries.push(item);
-      db.settings.nextDeliveryCode = Math.max(
-        Number(db.settings.nextDeliveryCode || 1),
-        code + 1
-      );
+      db.settings.nextDeliveryCode = Math.max(Number(db.settings.nextDeliveryCode || 1), code + 1);
       save();
+
+      window.XBProduction?.clearDraft?.();
+      window.dispatchEvent(new CustomEvent('xb:delivery-created', {
+        detail: { id: item.id, code: item.code, createdAt: item.createdAt }
+      }));
 
       resetDeliveryForm(event.target);
       notify(`Entrega #${String(code).padStart(3, '0')} cadastrada.`);
@@ -117,6 +116,8 @@
         notify('Para cadastrar uma nova entrega, conecte à internet. Isso evita números de pedido duplicados entre aparelhos.', 'error');
       } else if (message === 'AUTH_REQUIRED') {
         notify('Sua sessão expirou. Entre novamente para cadastrar a entrega.', 'error');
+      } else if (message === 'CLOUD_NOT_READY') {
+        notify('O banco online ainda está conectando. Aguarde alguns segundos e tente novamente.', 'error');
       } else {
         notify('Não foi possível reservar o número do pedido. Confira a conexão e tente novamente.', 'error');
       }
