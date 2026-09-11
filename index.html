@@ -9,34 +9,355 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
+  <style>
+    /* Login inspirado na referência, mantendo a identidade vermelho/creme X-Burguer */
+    #loginView.login-view{
+      min-height:100vh;
+      padding:0;
+      display:flex;
+      align-items:stretch;
+      justify-content:stretch;
+      background:#f8f3ed;
+    }
+    #loginView .login-shell{
+      width:100%;
+      min-height:100vh;
+      display:grid;
+      grid-template-columns:minmax(420px,42%) 1fr;
+      border-radius:0;
+      overflow:hidden;
+      box-shadow:none;
+      background:#f8f3ed;
+    }
+    #loginView .login-brand{
+      min-height:100vh;
+      padding:42px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      position:relative;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at -8% -4%,rgba(255,255,255,.08) 0 14%,transparent 14.5%),
+        radial-gradient(circle at 108% 108%,rgba(243,189,61,.12) 0 19%,transparent 19.5%),
+        linear-gradient(145deg,#8f030b 0%,#a90712 48%,#6f0208 100%);
+    }
+    #loginView .login-brand:before{
+      content:"";
+      position:absolute;
+      width:420px;
+      height:420px;
+      border-radius:50%;
+      left:-250px;
+      top:-220px;
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 0 0 68px rgba(255,255,255,.025),0 0 0 132px rgba(255,255,255,.018);
+    }
+    #loginView .login-brand:after{
+      content:"";
+      position:absolute;
+      width:520px;
+      height:520px;
+      border-radius:50%;
+      right:-340px;
+      bottom:-330px;
+      border:1px solid rgba(243,189,61,.28);
+      box-shadow:0 0 0 82px rgba(243,189,61,.025);
+    }
+    #loginView .login-brand-panel{
+      width:min(380px,88%);
+      padding:36px 30px 30px;
+      text-align:center;
+      position:relative;
+      z-index:2;
+      border-radius:30px;
+      border:1px solid rgba(255,255,255,.18);
+      background:rgba(255,255,255,.07);
+      box-shadow:0 28px 70px rgba(58,0,0,.24);
+      backdrop-filter:blur(8px);
+    }
+    #loginView .login-logo-ring{
+      width:178px;
+      height:178px;
+      margin:0 auto 26px;
+      border-radius:50%;
+      padding:9px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(145deg,#f6cf62,#d99513);
+      box-shadow:0 18px 46px rgba(51,0,0,.28);
+    }
+    #loginView .login-logo-core{
+      width:100%;
+      height:100%;
+      border-radius:50%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:4px;
+      background:#fff9ed;
+      border:7px solid #9d0710;
+      box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 7px #e1aa2d;
+      color:#97060f;
+    }
+    #loginView .login-logo-core .burger-mark{font-size:43px;line-height:1}
+    #loginView .login-logo-core strong{font-size:23px;letter-spacing:-.7px}
+    #loginView .login-logo-core small{font-size:8px;font-weight:800;letter-spacing:1.7px;color:#6e2c27}
+    #loginView .login-brand-panel h1{font-size:34px;line-height:1.05;letter-spacing:-1.3px;margin:0;color:#fff}
+    #loginView .login-brand-panel p{margin-top:12px;font-size:12px;font-weight:800;letter-spacing:3px;color:#f8c8cc}
+    #loginView .login-brand-foot{
+      position:absolute;
+      bottom:30px;
+      left:0;
+      right:0;
+      text-align:center;
+      z-index:2;
+      font-size:10px;
+      font-weight:700;
+      letter-spacing:1.3px;
+      color:rgba(255,255,255,.62);
+    }
+    #loginView .login-form-wrap{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:46px 64px;
+      position:relative;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at 92% 7%,rgba(169,6,17,.055),transparent 26%),
+        radial-gradient(circle at 12% 94%,rgba(243,189,61,.09),transparent 25%),
+        linear-gradient(135deg,#fffdfa 0%,#f7f3ed 100%);
+    }
+    #loginView .login-form-wrap:before{
+      content:"";
+      position:absolute;
+      width:500px;
+      height:500px;
+      border-radius:50%;
+      right:-300px;
+      top:-310px;
+      border:1px solid rgba(169,6,17,.08);
+    }
+    #loginView .login-card{
+      width:min(520px,100%);
+      padding:38px 38px 30px;
+      position:relative;
+      z-index:2;
+      border-radius:28px;
+      border:1px solid #eaded5;
+      background:rgba(255,255,255,.93);
+      box-shadow:0 30px 70px rgba(83,40,25,.13);
+    }
+    #loginView .login-system-badge{
+      width:max-content;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 13px;
+      border-radius:999px;
+      color:#8c0710;
+      background:#fff1f2;
+      border:1px solid #f0c8cb;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:1.6px;
+    }
+    #loginView .login-system-badge:before{
+      content:"";
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:#d71925;
+      box-shadow:0 0 0 4px rgba(215,25,37,.10);
+    }
+    #loginView .login-form{max-width:none;width:100%}
+    #loginView .login-form h2{
+      margin:24px 0 0;
+      font-size:40px;
+      line-height:1.05;
+      letter-spacing:-1.5px;
+      color:#251f1c;
+    }
+    #loginView .login-form>p{
+      margin:10px 0 30px;
+      font-size:13px;
+      line-height:1.65;
+      color:#7c726c;
+    }
+    #loginView .login-field{margin-bottom:18px}
+    #loginView .login-field label{
+      display:block;
+      margin:0 0 8px;
+      font-size:12px;
+      font-weight:800;
+      color:#3e3733;
+    }
+    #loginView .login-input-wrap{position:relative}
+    #loginView .login-input-icon{
+      position:absolute;
+      left:16px;
+      top:50%;
+      transform:translateY(-50%);
+      width:28px;
+      height:28px;
+      border-radius:9px;
+      display:grid;
+      place-items:center;
+      color:#a90611;
+      background:#fff0f1;
+      font-size:13px;
+      pointer-events:none;
+    }
+    #loginView .login-form input[type="email"],
+    #loginView .login-form input[type="password"],
+    #loginView .login-form input[type="text"]{
+      width:100%;
+      height:56px;
+      margin:0;
+      padding:0 48px 0 56px;
+      border:1px solid #dfd5cd;
+      border-radius:15px;
+      outline:none;
+      color:#302925;
+      background:#fbf8f4;
+      font-size:14px;
+      transition:.2s ease;
+    }
+    #loginView .login-form input:focus{
+      border-color:#c8101b;
+      background:#fff;
+      box-shadow:0 0 0 4px rgba(200,16,27,.10);
+      transform:none;
+    }
+    #loginView .login-eye{
+      position:absolute;
+      right:12px;
+      top:50%;
+      transform:translateY(-50%);
+      width:34px;
+      height:34px;
+      border:0;
+      border-radius:10px;
+      background:transparent;
+      color:#8e817a;
+      font-size:15px;
+    }
+    #loginView .login-eye:hover{background:#f4ece7;color:#a90611}
+    #loginView .login-options{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin:2px 0 20px;
+      color:#756a64;
+      font-size:11px;
+      font-weight:700;
+    }
+    #loginView .remember-login{display:flex;align-items:center;gap:8px;cursor:pointer}
+    #loginView .remember-login input{width:17px;height:17px;margin:0;accent-color:#a90611}
+    #loginView .login-secure{display:flex;align-items:center;gap:6px;color:#9a8e87}
+    #loginView .login-card .btn.btn-primary.btn-lg{
+      width:100%;
+      min-height:54px;
+      margin:0;
+      border-radius:14px;
+      border:0;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:.7px;
+      color:#fff;
+      background:linear-gradient(90deg,#99060f,#c4111c 62%,#a40711);
+      box-shadow:0 14px 30px rgba(169,6,17,.22);
+    }
+    #loginView .login-card .btn.btn-primary.btn-lg:hover{
+      transform:translateY(-1px);
+      box-shadow:0 17px 34px rgba(169,6,17,.27);
+    }
+    #loginView .login-footer{
+      margin-top:20px;
+      padding-top:18px;
+      border-top:1px solid #efe7e1;
+      text-align:center;
+      font-size:10px;
+      font-weight:700;
+      color:#9a8e87;
+      letter-spacing:.25px;
+    }
+    #loginView .login-footer b{color:#a90611}
+    #loginView .login-hint{display:none}
+
+    @media(max-width:900px){
+      #loginView .login-shell{grid-template-columns:1fr}
+      #loginView .login-brand{display:none}
+      #loginView .login-form-wrap{padding:28px 18px}
+      #loginView .login-card{padding:32px 26px 25px;border-radius:24px}
+    }
+    @media(max-width:520px){
+      #loginView .login-form-wrap{padding:14px;background:#f8f3ed}
+      #loginView .login-card{padding:28px 20px 22px;border-radius:20px}
+      #loginView .login-form h2{font-size:32px}
+      #loginView .login-form>p{font-size:12px;margin-bottom:24px}
+      #loginView .login-form input[type="email"],
+      #loginView .login-form input[type="password"],
+      #loginView .login-form input[type="text"]{height:54px}
+      #loginView .login-options{align-items:flex-start;flex-direction:column;gap:9px}
+    }
+  </style>
 </head>
 <body>
   <section class="login-view" id="loginView">
     <div class="login-shell">
       <div class="login-brand">
-        <div class="brand-lockup">
-          <div class="brand-logo">🍔</div>
-          <div><strong>X-Burguer</strong><span>Central de Entregas</span></div>
+        <div class="login-brand-panel">
+          <div class="login-logo-ring">
+            <div class="login-logo-core">
+              <span class="burger-mark">🍔</span>
+              <strong>X-Burguer</strong>
+              <small>ENTREGAS</small>
+            </div>
+          </div>
+          <h1>X-Burguer</h1>
+          <p>CENTRAL DE ENTREGAS</p>
         </div>
-        <div class="login-copy">
-          <span>GESTÃO DE ENTREGAS</span>
-          <h1>Mais controle.<br>Mais agilidade.<br><b>Mais resultado.</b></h1>
-          <p>Pedidos, entregadores, taxas, fechamento e relatórios em um único painel.</p>
-        </div>
-        <div class="benefits"><span>✓ Dados salvos</span><span>✓ Fechamento diário</span><span>✓ Backup</span></div>
+        <div class="login-brand-foot">ORGANIZAÇÃO • AGILIDADE • RESULTADOS</div>
       </div>
       <div class="login-form-wrap">
-        <form class="login-form" id="loginForm">
-          <div class="eyebrow">X-Burguer Entregas</div>
-          <h2>Bem-vindo!</h2>
-          <p>Use seu acesso para entrar no painel.</p>
-          <label>E-mail</label>
-          <input id="loginEmail" type="email" placeholder="admin@xburguer.com" required>
-          <label>Senha</label>
-          <input id="loginPassword" type="password" placeholder="Sua senha" required>
-          <button class="btn btn-primary btn-lg" type="submit">Entrar no sistema →</button>
-          <div class="login-hint"><strong>Acesso inicial</strong><br>admin@xburguer.com · senha 123456</div>
-        </form>
+        <div class="login-card">
+          <form class="login-form" id="loginForm">
+            <div class="login-system-badge">SISTEMA INTERNO</div>
+            <h2>Bem-vindo de volta</h2>
+            <p>Entre para registrar, acompanhar e organizar as entregas da X-Burguer.</p>
+
+            <div class="login-field">
+              <label for="loginEmail">E-mail</label>
+              <div class="login-input-wrap">
+                <span class="login-input-icon">✉</span>
+                <input id="loginEmail" type="email" placeholder="admin@xburguer.com" autocomplete="username" required>
+              </div>
+            </div>
+
+            <div class="login-field">
+              <label for="loginPassword">Senha</label>
+              <div class="login-input-wrap">
+                <span class="login-input-icon">◆</span>
+                <input id="loginPassword" type="password" placeholder="Sua senha" autocomplete="current-password" required>
+                <button class="login-eye" type="button" id="togglePassword" aria-label="Mostrar ou ocultar senha">◉</button>
+              </div>
+            </div>
+
+            <div class="login-options">
+              <label class="remember-login"><input id="rememberLogin" type="checkbox"> Lembrar meu e-mail</label>
+              <span class="login-secure">● Acesso seguro</span>
+            </div>
+
+            <button class="btn btn-primary btn-lg" type="submit">ENTRAR NO SISTEMA →</button>
+            <div class="login-footer">Uso interno • <b>X-Burguer Entregas</b> • Gestão da operação</div>
+          </form>
+        </div>
       </div>
     </div>
   </section>
@@ -210,5 +531,25 @@
 
   <div class="toasts" id="toasts"></div>
   <script src="./app.js"></script>
+  <script>
+    (()=>{
+      const email=document.getElementById('loginEmail');
+      const remember=document.getElementById('rememberLogin');
+      const toggle=document.getElementById('togglePassword');
+      const password=document.getElementById('loginPassword');
+      const saved=localStorage.getItem('xb_entregas_login_email');
+      if(saved&&email&&remember){email.value=saved;remember.checked=true}
+      document.getElementById('loginForm')?.addEventListener('submit',()=>{
+        if(remember?.checked)localStorage.setItem('xb_entregas_login_email',email.value.trim());
+        else localStorage.removeItem('xb_entregas_login_email');
+      });
+      toggle?.addEventListener('click',()=>{
+        const show=password.type==='password';
+        password.type=show?'text':'password';
+        toggle.textContent=show?'◌':'◉';
+        toggle.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha');
+      });
+    })();
+  </script>
 </body>
 </html>
