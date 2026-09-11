@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#93040d">
+  <meta name="color-scheme" content="light">
+  <title>X-Burguer Entregas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body>
+  <section class="login-view" id="loginView">
+    <div class="login-shell">
+      <div class="login-brand" aria-hidden="true">
+        <div class="brand-orbit brand-orbit-a"></div>
+        <div class="brand-orbit brand-orbit-b"></div>
+        <div class="login-brand-content">
+          <div class="login-logo-frame"><img src="./assets/xburguer-logo.jpg" alt=""></div>
+          <div class="login-brand-kicker">CENTRAL DE ENTREGAS</div>
+          <h1>Operação organizada.<br><span>Entrega mais rápida.</span></h1>
+          <p>Um painel simples para acompanhar pedidos, entregadores, pagamentos e fechamento do dia.</p>
+          <div class="login-feature-row">
+            <span><i data-lucide="route"></i> Entregas</span>
+            <span><i data-lucide="users-round"></i> Equipe</span>
+            <span><i data-lucide="chart-no-axes-combined"></i> Resultados</span>
+          </div>
+        </div>
+        <div class="login-brand-foot">X-BURGUER • GESTÃO INTERNA</div>
+      </div>
+
+      <div class="login-form-wrap">
+        <div class="login-card">
+          <div class="login-mobile-logo"><img src="./assets/xburguer-logo.jpg" alt="Logo X-Burguer"></div>
+          <div class="login-system-badge"><span></span>SISTEMA INTERNO</div>
+          <form class="login-form" id="loginForm">
+            <h2>Bem-vindo de volta</h2>
+            <p>Entre para acessar a Central de Entregas da X-Burguer.</p>
+
+            <div class="field login-field">
+              <label for="loginEmail">E-mail</label>
+              <div class="control-with-icon">
+                <i data-lucide="mail"></i>
+                <input id="loginEmail" type="email" placeholder="admin@xburguer.com" autocomplete="username" required>
+              </div>
+            </div>
+
+            <div class="field login-field">
+              <label for="loginPassword">Senha</label>
+              <div class="control-with-icon">
+                <i data-lucide="lock-keyhole"></i>
+                <input id="loginPassword" type="password" placeholder="Sua senha" autocomplete="current-password" required>
+                <button class="input-icon-button" id="togglePassword" type="button" aria-label="Mostrar senha" title="Mostrar ou ocultar senha"><i data-lucide="eye"></i></button>
+              </div>
+            </div>
+
+            <div class="login-options">
+              <label class="check-line"><input id="rememberLogin" type="checkbox"><span>Lembrar meu e-mail</span></label>
+              <span class="secure-line"><i data-lucide="shield-check"></i>Acesso protegido</span>
+            </div>
+
+            <button class="btn btn-primary btn-lg login-submit" type="submit"><span>Entrar no sistema</span><i data-lucide="arrow-right"></i></button>
+            <div class="login-footer">Uso interno da <strong>X-Burguer</strong></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="app hidden" id="appView">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <div class="side-logo"><img src="./assets/xburguer-logo.jpg" alt="Logo X-Burguer"></div>
+        <div class="side-brand-copy"><strong>X-Burguer</strong><small>Central de Entregas</small></div>
+      </div>
+
+      <nav class="side-nav" aria-label="Navegação principal">
+        <div class="nav-label">VISÃO GERAL</div>
+        <button class="nav-btn active" data-page="dashboard"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span><span>Dashboard</span></button>
+        <div class="nav-label">OPERAÇÃO</div>
+        <button class="nav-btn" data-page="newDelivery"><span class="nav-icon"><i data-lucide="package-plus"></i></span><span>Nova entrega</span></button>
+        <button class="nav-btn" data-page="deliveries"><span class="nav-icon"><i data-lucide="bike"></i></span><span>Entregas</span></button>
+        <button class="nav-btn" data-page="couriers"><span class="nav-icon"><i data-lucide="users-round"></i></span><span>Entregadores</span></button>
+        <button class="nav-btn" data-page="closing"><span class="nav-icon"><i data-lucide="clipboard-check"></i></span><span>Fechamento</span></button>
+        <button class="nav-btn" data-page="reports"><span class="nav-icon"><i data-lucide="chart-no-axes-combined"></i></span><span>Relatórios</span></button>
+        <div class="nav-label">SISTEMA</div>
+        <button class="nav-btn" data-page="settings"><span class="nav-icon"><i data-lucide="settings-2"></i></span><span>Configurações</span></button>
+      </nav>
+
+      <div class="side-spacer"></div>
+      <div class="side-note"><div class="side-note-icon"><i data-lucide="cloud-download"></i></div><div><b>Backup recomendado</b><span>Faça uma cópia regularmente.</span></div></div>
+      <button class="logout" id="logoutBtn"><i data-lucide="log-out"></i><span>Sair do sistema</span></button>
+    </aside>
+
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-left">
+          <button class="mobile-menu" id="mobileMenu" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
+          <div class="top-title"><small>Central de Entregas</small><strong id="topTitle">Dashboard</strong></div>
+        </div>
+        <div class="top-right">
+          <div class="today"><i data-lucide="calendar-days"></i><span id="todayLabel"></span></div>
+          <div class="avatar" title="X-Burguer">XB</div>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="page active" id="page-dashboard">
+          <div class="hero">
+            <div class="hero-copy">
+              <div class="eyebrow"><i data-lucide="sparkles"></i>X-BURGUER ENTREGAS</div>
+              <h1>Seu delivery em uma visão <span>clara e rápida.</span></h1>
+              <p>Acompanhe a operação do dia, veja o que está pendente e tome decisões sem perder tempo.</p>
+              <div class="hero-actions"><button class="btn btn-hero" data-go="newDelivery"><i data-lucide="plus"></i>Nova entrega</button><button class="btn btn-hero-secondary" data-go="deliveries"><i data-lucide="list-checks"></i>Ver entregas</button></div>
+            </div>
+            <div class="hero-brand"><div class="hero-logo"><img src="./assets/xburguer-logo.jpg" alt="Logo X-Burguer"></div><span>Operação do dia</span></div>
+          </div>
+
+          <div class="stats" id="dashboardStats"></div>
+
+          <div class="dashboard-grid">
+            <div class="card card-table">
+              <div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="history"></i></div><div><h3>Entregas recentes</h3><p>Últimos pedidos cadastrados</p></div></div><button class="btn btn-light btn-sm" data-go="deliveries">Ver todas<i data-lucide="arrow-right"></i></button></div>
+              <div id="recentDeliveries"></div>
+            </div>
+
+            <div class="stack">
+              <div class="card">
+                <div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="zap"></i></div><div><h3>Acesso rápido</h3><p>Atalhos da operação</p></div></div></div>
+                <div class="quick-grid">
+                  <button class="quick" data-go="newDelivery"><span class="quick-icon"><i data-lucide="package-plus"></i></span><span><strong>Nova entrega</strong><small>Cadastrar pedido</small></span><i class="quick-arrow" data-lucide="chevron-right"></i></button>
+                  <button class="quick" data-go="couriers"><span class="quick-icon"><i data-lucide="users-round"></i></span><span><strong>Entregadores</strong><small>Gerenciar equipe</small></span><i class="quick-arrow" data-lucide="chevron-right"></i></button>
+                  <button class="quick" data-go="closing"><span class="quick-icon"><i data-lucide="clipboard-check"></i></span><span><strong>Fechamento</strong><small>Conferir o dia</small></span><i class="quick-arrow" data-lucide="chevron-right"></i></button>
+                </div>
+              </div>
+              <div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="activity"></i></div><div><h3>Situação agora</h3><p>Resumo operacional</p></div></div></div><div class="card-body" id="operationSummary"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" id="page-newDelivery">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="package-plus"></i>OPERAÇÃO</div><h1>Nova entrega</h1><p>Cadastre somente o que importa. Endereço em um único campo e cliente opcional.</p></div></div>
+
+          <form id="deliveryForm" class="card form-card">
+            <div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="map-pinned"></i></div><div><h3>Dados da entrega</h3><p>Preencha as informações para colocar o pedido em operação.</p></div></div></div>
+            <div class="card-body form-body">
+              <div class="form-section">
+                <div class="form-section-head"><span class="step">1</span><div><h4>Endereço da entrega</h4><p>Escreva rua, número, bairro, complemento e referência no mesmo campo.</p></div></div>
+                <div class="field address-field"><label for="deliveryAddress">Endereço completo <span class="required">*</span></label><textarea id="deliveryAddress" placeholder="Ex.: Rua 31, nº 150, Bairro Centro, casa azul ao lado da farmácia" required></textarea><input id="deliveryReference" type="hidden" value=""></div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-head"><span class="step">2</span><div><h4>Informações do cliente <span class="optional-pill">Opcional</span></h4><p>Preencha apenas quando for útil para a entrega.</p></div></div>
+                <div class="form-grid"><div class="field span-6"><label for="deliveryClient">Nome do cliente</label><input id="deliveryClient" placeholder="Ex.: João Silva"></div><div class="field span-6"><label for="deliveryPhone">Telefone</label><input id="deliveryPhone" placeholder="(62) 99999-9999"></div></div>
+              </div>
+
+              <div class="form-section">
+                <div class="form-section-head"><span class="step">3</span><div><h4>Entrega, valores e pagamento</h4><p>Escolha o entregador, informe os valores e a forma de pagamento.</p></div></div>
+                <div class="form-grid">
+                  <div class="field span-4"><label for="deliveryCourier">Entregador</label><select id="deliveryCourier"></select></div>
+                  <div class="field span-4"><label for="deliveryFee">Taxa de entrega</label><div class="money-input"><span>R$</span><input id="deliveryFee" type="number" step="0.01" min="0"></div></div>
+                  <div class="field span-4"><label for="deliveryValue">Valor do pedido</label><div class="money-input"><span>R$</span><input id="deliveryValue" type="number" step="0.01" min="0" value="0"></div></div>
+                  <fieldset class="field span-12 payment-field"><legend>Forma de pagamento</legend><div class="payment-options">
+                    <label class="payment-option"><input type="radio" name="payment" value="Dinheiro" checked><span class="payment-card"><span class="payment-icon"><i data-lucide="banknote"></i></span><span><strong>Dinheiro</strong><small>Pode ter troco</small></span><i class="payment-check" data-lucide="circle-check"></i></span></label>
+                    <label class="payment-option"><input type="radio" name="payment" value="PIX"><span class="payment-card"><span class="payment-icon"><i data-lucide="qr-code"></i></span><span><strong>PIX</strong><small>Pagamento no PIX</small></span><i class="payment-check" data-lucide="circle-check"></i></span></label>
+                    <label class="payment-option"><input type="radio" name="payment" value="Cartão"><span class="payment-card"><span class="payment-icon"><i data-lucide="credit-card"></i></span><span><strong>Cartão</strong><small>Débito ou crédito</small></span><i class="payment-check" data-lucide="circle-check"></i></span></label>
+                    <label class="payment-option"><input type="radio" name="payment" value="Pago online"><span class="payment-card"><span class="payment-icon"><i data-lucide="badge-check"></i></span><span><strong>Pago online</strong><small>Já está pago</small></span><i class="payment-check" data-lucide="circle-check"></i></span></label>
+                  </div></fieldset>
+                  <div class="field span-6 change-field" id="changeField"><label for="deliveryChange">Troco para quanto? <span class="optional-pill">Opcional</span></label><div class="money-input"><span>R$</span><input id="deliveryChange" type="number" step="0.01" min="0" placeholder="50,00"></div><small class="field-help">Deixe em branco quando não precisar de troco.</small></div>
+                  <div class="field span-12"><label for="deliveryNotes">Observações <span class="optional-pill">Opcional</span></label><textarea id="deliveryNotes" placeholder="Alguma observação sobre a entrega ou o pedido?"></textarea></div>
+                </div>
+              </div>
+              <div class="form-actions"><button class="btn btn-primary btn-lg" type="submit"><i data-lucide="plus"></i>Cadastrar entrega</button></div>
+            </div>
+          </form>
+        </section>
+
+        <section class="page" id="page-deliveries">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="bike"></i>OPERAÇÃO</div><h1>Entregas</h1><p>Acompanhe status, valores, pagamento e responsável de cada entrega.</p></div><div class="actions"><button class="btn btn-light" id="exportCsvBtn"><i data-lucide="file-down"></i>Exportar CSV</button><button class="btn btn-primary" data-go="newDelivery"><i data-lucide="plus"></i>Nova entrega</button></div></div>
+          <div class="stats" id="deliveryStats"></div>
+          <div class="table-toolbar"><div class="search-control"><i data-lucide="search"></i><input id="deliverySearch" placeholder="Buscar cliente, endereço ou entregador..."></div><div class="toolbar-filters"><select id="statusFilter" aria-label="Filtrar por status"><option value="">Todos os status</option><option>Aguardando</option><option>Em rota</option><option>Entregue</option><option>Cancelada</option></select><select id="dateFilter" aria-label="Filtrar por período"><option value="today">Hoje</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="all">Todo período</option></select></div></div>
+          <div class="card card-table"><div class="table-wrap" id="deliveriesTable"></div></div>
+        </section>
+
+        <section class="page" id="page-couriers">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="users-round"></i>EQUIPE</div><h1>Entregadores</h1><p>Gerencie disponibilidade, taxa padrão e desempenho da equipe.</p></div><button class="btn btn-primary" id="newCourierBtn"><i data-lucide="user-plus"></i>Novo entregador</button></div>
+          <div class="stats" id="courierStats"></div>
+          <div class="courier-grid" id="courierGrid"></div>
+        </section>
+
+        <section class="page" id="page-closing">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="clipboard-check"></i>CONFERÊNCIA</div><h1>Fechamento do dia</h1><p>Confira pedidos, taxas, pagamentos e pendências antes de finalizar.</p></div></div>
+          <div id="closingBanner"></div>
+          <div class="stats" id="closingStats"></div>
+          <div class="grid-2"><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="wallet-cards"></i></div><div><h3>Formas de pagamento</h3><p>Valores das entregas concluídas</p></div></div></div><div class="card-body" id="closingPayments"></div></div><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="bike"></i></div><div><h3>Entregadores</h3><p>Taxas do dia por entregador</p></div></div></div><div class="card-body" id="closingCouriers"></div></div></div>
+          <div class="closing-actions"><button class="btn btn-light hidden" id="reopenDayBtn"><i data-lucide="rotate-ccw"></i>Reabrir dia</button><button class="btn btn-green" id="closeDayBtn"><i data-lucide="circle-check-big"></i>Finalizar dia</button></div>
+        </section>
+
+        <section class="page" id="page-reports">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="chart-no-axes-combined"></i>ANÁLISE</div><h1>Relatórios</h1><p>Entenda volume, faturamento, pagamentos e desempenho da equipe.</p></div><select class="head-select" id="reportRange"><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="all">Todo período</option></select></div>
+          <div class="stats" id="reportStats"></div>
+          <div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="chart-column"></i></div><div><h3>Entregas realizadas</h3><p>Quantidade por dia</p></div></div></div><div class="card-body"><div class="chart" id="reportChart"></div></div></div>
+          <div class="grid-2 report-grid"><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="credit-card"></i></div><div><h3>Formas de pagamento</h3><p>Distribuição dos pedidos</p></div></div></div><div class="card-body" id="paymentReport"></div></div><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="trophy"></i></div><div><h3>Ranking de entregadores</h3><p>Entregas concluídas</p></div></div></div><div class="card-body" id="courierRanking"></div></div></div>
+        </section>
+
+        <section class="page" id="page-settings">
+          <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="settings-2"></i>SISTEMA</div><h1>Configurações</h1><p>Gerencie dados gerais, acesso, backup e manutenção.</p></div></div>
+          <div class="grid-2 settings-grid">
+            <div class="stack">
+              <form class="card" id="settingsForm"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="store"></i></div><div><h3>Configurações gerais</h3><p>Nome do sistema e taxa padrão</p></div></div></div><div class="card-body"><div class="field"><label for="storeName">Nome da empresa</label><input id="storeName"></div><div class="field"><label for="defaultFee">Taxa padrão</label><div class="money-input"><span>R$</span><input id="defaultFee" type="number" step="0.01" min="0"></div></div><button class="btn btn-primary" type="submit"><i data-lucide="save"></i>Salvar configurações</button></div></form>
+              <form class="card" id="credentialsForm"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="key-round"></i></div><div><h3>Acesso ao sistema</h3><p>Altere e-mail e senha</p></div></div></div><div class="card-body"><div class="field"><label for="settingEmail">E-mail</label><input id="settingEmail" type="email"></div><div class="field"><label for="settingPassword">Senha</label><input id="settingPassword" type="password"></div><button class="btn btn-primary" type="submit"><i data-lucide="shield-check"></i>Atualizar acesso</button></div></form>
+            </div>
+            <div class="stack">
+              <div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="database-backup"></i></div><div><h3>Backup dos dados</h3><p>Salve uma cópia completa do sistema</p></div></div></div><div class="card-body"><div class="settings-action-list"><button class="settings-action" id="backupBtn"><span class="settings-action-icon"><i data-lucide="download"></i></span><span><strong>Baixar backup</strong><small>Salva entregas, equipe e configurações em JSON.</small></span><i data-lucide="chevron-right"></i></button><button class="settings-action" id="restoreBtn"><span class="settings-action-icon"><i data-lucide="upload"></i></span><span><strong>Restaurar backup</strong><small>Substitui os dados atuais por um arquivo salvo.</small></span><i data-lucide="chevron-right"></i></button></div><input id="backupFile" type="file" accept=".json" hidden></div></div>
+              <div class="card danger-card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon danger"><i data-lucide="triangle-alert"></i></div><div><h3>Limpeza de dados</h3><p>Ação permanente</p></div></div></div><div class="card-body"><p class="danger-copy">Apaga entregas e fechamentos, mantendo configurações e entregadores.</p><button class="btn btn-danger" id="clearDataBtn"><i data-lucide="trash-2"></i>Excluir entregas e fechamentos</button></div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal" id="courierModal" role="dialog" aria-modal="true" aria-labelledby="courierModalTitle">
+    <div class="modal-card"><div class="modal-head"><div><span class="modal-kicker">EQUIPE</span><h3 id="courierModalTitle">Novo entregador</h3></div><button class="modal-close" data-close="courierModal" aria-label="Fechar"><i data-lucide="x"></i></button></div><form id="courierForm"><div class="modal-body form-grid"><input id="courierId" type="hidden"><div class="field span-6"><label for="courierName">Nome <span class="required">*</span></label><input id="courierName" required></div><div class="field span-6"><label for="courierPhone">Telefone</label><input id="courierPhone"></div><div class="field span-6"><label for="courierFee">Taxa padrão</label><div class="money-input"><span>R$</span><input id="courierFee" type="number" step="0.01" min="0"></div></div><div class="field span-6"><label for="courierActive">Status</label><select id="courierActive"><option value="true">Ativo</option><option value="false">Inativo</option></select></div></div><div class="modal-actions"><button class="btn btn-light" type="button" data-close="courierModal">Cancelar</button><button class="btn btn-primary" type="submit"><i data-lucide="save"></i>Salvar entregador</button></div></form></div>
+  </div>
+
+  <div class="modal" id="deliveryModal" role="dialog" aria-modal="true" aria-labelledby="deliveryModalTitle">
+    <div class="modal-card modal-card-lg"><div class="modal-head"><div><span class="modal-kicker">ENTREGA</span><h3 id="deliveryModalTitle">Editar entrega</h3></div><button class="modal-close" data-close="deliveryModal" aria-label="Fechar"><i data-lucide="x"></i></button></div><form id="deliveryEditForm"><div class="modal-body form-grid"><input id="editDeliveryId" type="hidden"><div class="field span-12"><label for="editDeliveryAddress">Endereço completo</label><textarea id="editDeliveryAddress" required></textarea></div><div class="field span-6"><label for="editDeliveryClient">Cliente</label><input id="editDeliveryClient"></div><div class="field span-6"><label for="editDeliveryPhone">Telefone</label><input id="editDeliveryPhone"></div><div class="field span-6"><label for="editDeliveryCourier">Entregador</label><select id="editDeliveryCourier"></select></div><div class="field span-3"><label for="editDeliveryValue">Pedido</label><div class="money-input"><span>R$</span><input id="editDeliveryValue" type="number" step="0.01" min="0"></div></div><div class="field span-3"><label for="editDeliveryFee">Taxa</label><div class="money-input"><span>R$</span><input id="editDeliveryFee" type="number" step="0.01" min="0"></div></div><div class="field span-6"><label for="editDeliveryPayment">Pagamento</label><select id="editDeliveryPayment"><option>Dinheiro</option><option>PIX</option><option>Cartão</option><option>Pago online</option></select></div><div class="field span-6" id="editChangeField"><label for="editDeliveryChange">Troco para</label><div class="money-input"><span>R$</span><input id="editDeliveryChange" type="number" step="0.01" min="0"></div></div><div class="field span-12"><label for="editDeliveryNotes">Observações</label><textarea id="editDeliveryNotes"></textarea></div></div><div class="modal-actions"><button class="btn btn-light" type="button" data-close="deliveryModal">Cancelar</button><button class="btn btn-primary" type="submit"><i data-lucide="save"></i>Salvar alterações</button></div></form></div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
