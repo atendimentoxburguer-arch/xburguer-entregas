@@ -1,33 +1,43 @@
-# Banco de dados — próxima etapa
+# Banco de dados Supabase — X-Burguer Entregas
 
-O sistema continua funcionando com `localStorage`, mas agora possui uma camada de preparação para migração sem quebrar o uso atual.
+O aplicativo já está conectado a um projeto Supabase dedicado da X-Burguer e mantém o armazenamento local apenas como apoio para funcionamento offline e recuperação.
 
-## O que já está preparado
+## Estrutura ativa
 
-- estrutura de dados normalizada;
-- status antigos `Em rota` convertidos para `Aguardando`;
-- IDs e números de pedidos validados;
-- pacote de migração sem senha local;
-- esquema SQL para Supabase;
-- RLS por usuário autenticado;
-- função atômica para gerar número de pedido sem duplicar quando houver vários aparelhos;
-- fechamentos com resumo e snapshot das entregas preservados em JSONB.
+- `public.app_settings`: configurações gerais e sequência de pedidos;
+- `public.couriers`: entregadores;
+- `public.deliveries`: entregas e situação do pagamento;
+- `public.daily_closings`: fechamentos, resumos e snapshot das entregas;
+- RLS habilitado em todas as tabelas;
+- Realtime habilitado nas tabelas operacionais;
+- função `xb_next_delivery_code()` para geração atômica do número do pedido;
+- índices para consultas por data, situação e entregador.
 
-## Ordem segura para continuar
+## Sincronização
 
-1. Criar ou conectar um projeto Supabase.
-2. Executar `supabase/schema.sql` no banco.
-3. Criar o primeiro usuário pelo Supabase Auth.
-4. Usar somente a URL do projeto e uma **publishable key** no aplicativo. Nunca colocar `service_role` no navegador ou no GitHub Pages.
-5. No sistema atual, abrir **Configurações > Banco de dados > Verificar dados**.
-6. Gerar o **Pacote de migração** e importar os registros para o usuário autenticado.
-7. Ativar a sincronização remota mantendo o armazenamento local apenas como cache/recuperação.
-8. Testar criação, edição, conferência de pagamento, fechamento, histórico e relatórios em dois aparelhos antes de considerar a migração concluída.
+Depois do login pelo Supabase Auth, o aplicativo:
 
-## Autenticação
+1. verifica automaticamente os dados no banco;
+2. se o banco estiver vazio e houver dados locais, guarda uma cópia de segurança e envia os dados para o Supabase;
+3. salva novas alterações automaticamente;
+4. recebe alterações de outros aparelhos via Realtime;
+5. continua guardando dados locais quando estiver offline e tenta sincronizar quando a internet voltar.
 
-O e-mail e a senha atuais do sistema são apenas o login legado local. Eles não devem ser gravados na tabela `app_settings`. Na etapa de conexão, o login será substituído pelo Supabase Auth.
+## Primeiro acesso
 
-## Regra importante
+O login legado local não deve mais ser usado quando a conexão Supabase estiver ativa. Na tela inicial do aplicativo existe o botão **Criar primeiro acesso seguro**. O usuário informa o e-mail e uma senha nova com pelo menos 8 caracteres.
 
-A aplicação é publicada no GitHub Pages, portanto qualquer chave colocada no JavaScript é pública. Use somente chave publicável/anon com RLS ativado. Nunca use uma chave administrativa no frontend.
+A confirmação de e-mail pode ser exigida pelo Supabase. Depois da confirmação, basta voltar ao aplicativo e entrar normalmente.
+
+## Segurança
+
+O GitHub Pages contém apenas a URL do projeto e uma chave **publishable**. Isso é esperado para aplicações frontend com Supabase, desde que o RLS permaneça ativado.
+
+Nunca colocar no repositório:
+
+- `service_role`;
+- senha do banco;
+- access token administrativo do Supabase;
+- segredos SMTP ou outros tokens privados.
+
+As políticas do banco usam `auth.uid()` por meio de subquery para manter o isolamento por usuário e evitar reavaliação desnecessária por linha.
