@@ -166,4 +166,36 @@ grant select, insert, update, delete on public.deliveries to authenticated;
 grant select, insert, update, delete on public.daily_closings to authenticated;
 grant execute on function public.xb_next_delivery_code() to authenticated;
 
+-- Realtime para que alterações feitas em um aparelho apareçam automaticamente nos demais.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'app_settings'
+  ) then
+    alter publication supabase_realtime add table public.app_settings;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'couriers'
+  ) then
+    alter publication supabase_realtime add table public.couriers;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'deliveries'
+  ) then
+    alter publication supabase_realtime add table public.deliveries;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'daily_closings'
+  ) then
+    alter publication supabase_realtime add table public.daily_closings;
+  end if;
+end $$;
+
 commit;
