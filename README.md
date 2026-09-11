@@ -4,7 +4,7 @@ Sistema web responsivo e instalável como aplicativo para controle interno de en
 
 ## Funcionalidades
 
-- Login local temporário
+- Login seguro com Supabase Auth
 - Dashboard gerencial
 - Cadastro e edição completa de entregas
 - Conferência de pagamento
@@ -15,17 +15,27 @@ Sistema web responsivo e instalável como aplicativo para controle interno de en
 - Exportação CSV
 - Backup e restauração em JSON
 - PWA instalável em celular e computador
-- Persistência local com camada preparada para migração ao Supabase
+- Banco online Supabase com sincronização automática e atualização entre aparelhos
+- Armazenamento local mantido como apoio para uso offline e recuperação
 
-## Preparação para banco de dados
+## Banco de dados
 
-A aplicação continua funcionando normalmente com `localStorage`, mas agora inclui `database-prep.js`, diagnóstico de integridade, pacote de migração e um esquema inicial seguro em `supabase/schema.sql`.
+O projeto dedicado do Supabase já está conectado ao aplicativo. A aplicação usa somente a URL do projeto e a chave publicável no frontend; nenhuma chave administrativa ou senha do banco é exposta no GitHub Pages.
 
-A próxima etapa é conectar um projeto Supabase, ativar Supabase Auth, executar o esquema e migrar os dados atuais. Consulte `supabase/README.md`.
+As tabelas usam Row Level Security (RLS), e as alterações de entregas, entregadores, configurações e fechamentos são sincronizadas automaticamente após o usuário entrar com Supabase Auth.
 
-## Acesso legado atual
+Na primeira autenticação, se o banco ainda estiver vazio e houver dados locais neste aparelho, o sistema faz a migração inicial automaticamente e guarda uma cópia local antes do envio.
 
-- E-mail: `admin@xburguer.com`
-- Senha: `123456`
+## Primeiro acesso
 
-> Esse acesso é temporário e será substituído pelo Supabase Auth. A senha local não deve ser migrada para o banco de dados.
+Na tela de login, informe o e-mail que será usado no sistema e crie uma senha nova com pelo menos 8 caracteres. Use o botão **Criar primeiro acesso seguro** apenas uma vez.
+
+Em projetos Supabase hospedados, a confirmação de e-mail pode ser solicitada. Depois de confirmar, volte ao aplicativo e faça login normalmente. A sessão fica salva e as próximas conexões acontecem automaticamente.
+
+## Segurança
+
+- a senha antiga `123456` não é aceita como nova senha;
+- a senha do usuário é gerenciada pelo Supabase Auth e não é gravada nas tabelas do aplicativo;
+- RLS limita os dados ao usuário autenticado;
+- o frontend usa apenas a chave publicável;
+- nunca adicionar `service_role`, senha do banco ou outros segredos ao repositório.
