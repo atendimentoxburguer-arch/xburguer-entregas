@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-db-prod2';
+  const version = '20260911-prod-audit1';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -37,8 +37,10 @@
       'payment-confirmation-pro.js',
       'operations-pro.js',
       'closing-history.js',
-      // Assume autenticação e sincronização remota.
-      'database-cloud.js',
+      // Corrige fluxos legados, backup, recuperação e dados residuais antes da nuvem.
+      'production-hardening.js',
+      // Sincronização por registro, fila offline e conciliação segura entre aparelhos.
+      'database-cloud-v2.js',
       // Reserva o número do pedido no Supabase antes de cadastrar, evitando colisões.
       'atomic-delivery-code.js',
       // Produção: somente login existente e alteração segura de credenciais.
