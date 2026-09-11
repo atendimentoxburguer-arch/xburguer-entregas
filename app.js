@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-1234';
+  const version = '20260911-1312';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -10,12 +10,31 @@
     document.body.appendChild(script);
   });
 
-  loadScript(`./app-core.js?v=${version}`)
-    .then(() => loadScript(`./confirm-ui.js?v=${version}`))
-    .then(() => loadScript(`./system-update.js?v=${version}`))
-    .then(() => loadScript(`./closing-summary.js?v=${version}`))
-    .then(() => loadScript(`./ticket-average.js?v=${version}`))
-    .catch(error => {
-      console.error('[X-Burguer] Erro ao iniciar o sistema:', error);
-    });
+  async function startSystem() {
+    try {
+      await loadScript(`./app-core.js?v=${version}`);
+    } catch (error) {
+      console.error('[X-Burguer] Falha crítica ao carregar o núcleo do sistema:', error);
+      return;
+    }
+
+    const complements = [
+      'confirm-ui.js',
+      'system-update.js',
+      'closing-summary.js',
+      'ticket-average.js',
+      'system-audit.js'
+    ];
+
+    for (const file of complements) {
+      try {
+        await loadScript(`./${file}?v=${version}`);
+      } catch (error) {
+        // Um complemento com problema não impede os demais recursos de iniciarem.
+        console.error(`[X-Burguer] Não foi possível carregar ${file}:`, error);
+      }
+    }
+  }
+
+  startSystem();
 })();
