@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-1530';
+  const version = '20260911-db-ready1';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -24,6 +24,7 @@
     }
 
     const complements = [
+      'database-prep.js',
       'confirm-ui.js',
       'system-update.js',
       'closing-summary.js',
