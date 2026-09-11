@@ -1,5 +1,5 @@
 -- X-Burguer Entregas — esquema inicial para Supabase
--- Execute este arquivo em um projeto Supabase antes de ativar a sincronização no aplicativo.
+-- Este arquivo espelha a estrutura usada no projeto dedicado da X-Burguer.
 
 begin;
 
@@ -69,7 +69,6 @@ create index if not exists deliveries_user_status_idx
 create index if not exists deliveries_user_courier_idx
   on public.deliveries (user_id, courier_id);
 
--- Mantém updated_at consistente sem depender do navegador.
 create or replace function public.xb_set_updated_at()
 returns trigger
 language plpgsql
@@ -102,7 +101,6 @@ create trigger daily_closings_set_updated_at
 before update on public.daily_closings
 for each row execute function public.xb_set_updated_at();
 
--- Gera números de pedido de forma atômica para evitar duplicidade em vários aparelhos.
 create or replace function public.xb_next_delivery_code()
 returns bigint
 language plpgsql
@@ -130,7 +128,6 @@ begin
 end;
 $$;
 
--- Row Level Security: cada usuário autenticado acessa apenas seus próprios dados.
 alter table public.app_settings enable row level security;
 alter table public.couriers enable row level security;
 alter table public.deliveries enable row level security;
@@ -139,26 +136,26 @@ alter table public.daily_closings enable row level security;
 drop policy if exists app_settings_owner_all on public.app_settings;
 create policy app_settings_owner_all on public.app_settings
 for all to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 drop policy if exists couriers_owner_all on public.couriers;
 create policy couriers_owner_all on public.couriers
 for all to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 drop policy if exists deliveries_owner_all on public.deliveries;
 create policy deliveries_owner_all on public.deliveries
 for all to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 drop policy if exists daily_closings_owner_all on public.daily_closings;
 create policy daily_closings_owner_all on public.daily_closings
 for all to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
+using (user_id = (select auth.uid()))
+with check (user_id = (select auth.uid()));
 
 grant select, insert, update, delete on public.app_settings to authenticated;
 grant select, insert, update, delete on public.couriers to authenticated;
@@ -166,7 +163,6 @@ grant select, insert, update, delete on public.deliveries to authenticated;
 grant select, insert, update, delete on public.daily_closings to authenticated;
 grant execute on function public.xb_next_delivery_code() to authenticated;
 
--- Realtime para que alterações feitas em um aparelho apareçam automaticamente nos demais.
 do $$
 begin
   if not exists (
