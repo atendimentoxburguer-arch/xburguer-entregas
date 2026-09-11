@@ -1,0 +1,216 @@
+/* X-Burguer Entregas — degradês suaves entre blocos */
+:root{
+  --panel-cream:#fffaf6;
+  --panel-blush:#fff4f3;
+  --panel-gold:#fff8e9;
+  --panel-warm:#f7efe8;
+  --panel-line:#eadfd7;
+}
+
+/* Fundo das áreas internas para quebrar o excesso de branco */
+.form-card > .card-head{
+  background:linear-gradient(115deg,#fff 0%,#fff9f4 58%,#fff4ec 100%)!important;
+}
+.form-body{
+  position:relative;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 94% 4%,rgba(168,7,18,.055),transparent 22%),
+    radial-gradient(circle at 5% 92%,rgba(228,171,46,.09),transparent 25%),
+    linear-gradient(180deg,#fbf6f1 0%,#f6eee7 100%)!important;
+}
+.form-body:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  opacity:.48;
+  background:linear-gradient(135deg,rgba(255,255,255,.82),transparent 44%,rgba(168,7,18,.025) 76%,transparent);
+}
+
+/* Cada etapa recebe um tom levemente diferente */
+.form-section{
+  position:relative;
+  overflow:hidden;
+  border-color:var(--panel-line)!important;
+  box-shadow:0 12px 28px rgba(65,33,23,.055)!important;
+}
+.form-section:before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:18px;
+  bottom:18px;
+  width:4px;
+  border-radius:0 999px 999px 0;
+  background:linear-gradient(180deg,#a80712,#d21b27,#e4ab2e);
+  opacity:.72;
+}
+.form-section:nth-of-type(1){
+  background:
+    radial-gradient(circle at 96% 0%,rgba(168,7,18,.065),transparent 27%),
+    linear-gradient(135deg,#fffdfb 0%,#fff7f5 58%,#f9eee9 100%)!important;
+}
+.form-section:nth-of-type(2){
+  background:
+    radial-gradient(circle at 6% 4%,rgba(228,171,46,.10),transparent 26%),
+    linear-gradient(135deg,#fffefa 0%,#fff9ee 55%,#f8f0e7 100%)!important;
+}
+.form-section:nth-of-type(3){
+  background:
+    radial-gradient(circle at 96% 7%,rgba(168,7,18,.055),transparent 24%),
+    radial-gradient(circle at 4% 96%,rgba(228,171,46,.08),transparent 25%),
+    linear-gradient(135deg,#fffdfb 0%,#fdf6f1 52%,#f6ede6 100%)!important;
+}
+.form-section + .form-section{
+  margin-top:20px!important;
+}
+
+/* Cabeçalho de cada etapa também ganha profundidade */
+.form-section-head{
+  margin:-22px -22px 20px;
+  padding:20px 22px 17px;
+  border-bottom:1px solid rgba(221,207,197,.78);
+  background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.18));
+}
+.form-section-head .step{
+  background:linear-gradient(145deg,#8f050d,#ca1621)!important;
+  border:1px solid rgba(255,255,255,.26);
+  box-shadow:0 10px 24px rgba(159,7,16,.18)!important;
+}
+
+/* Campos: branco suave em vez de branco puro */
+.field input,
+.field select,
+.field textarea,
+.search-control input,
+.toolbar-filters select,
+.head-select{
+  background:linear-gradient(180deg,#fffefd 0%,#fcf8f5 100%)!important;
+  border-color:#d9ccc3!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 4px 12px rgba(60,31,22,.025)!important;
+}
+.field input:hover,
+.field select:hover,
+.field textarea:hover,
+.search-control input:hover,
+.toolbar-filters select:hover,
+.head-select:hover{
+  background:#fff!important;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus,
+.search-control input:focus,
+.toolbar-filters select:focus,
+.head-select:focus{
+  background:#fff!important;
+}
+
+/* Pagamentos ficam distintos sem poluir */
+.payment-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(228,171,46,.08),transparent 28%),
+    linear-gradient(145deg,#fffefd 0%,#faf3ed 100%)!important;
+}
+.payment-option:nth-child(2) .payment-card{
+  background:linear-gradient(145deg,#fff 0%,#f5faf8 100%)!important;
+}
+.payment-option:nth-child(3) .payment-card{
+  background:linear-gradient(145deg,#fff 0%,#f6f7fb 100%)!important;
+}
+.payment-option:nth-child(4) .payment-card{
+  background:linear-gradient(145deg,#fff 0%,#f5f8f3 100%)!important;
+}
+.payment-option input:checked + .payment-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(228,171,46,.10),transparent 28%),
+    linear-gradient(145deg,#fff9f8,#ffeded)!important;
+}
+
+/* Barras de filtros e tabelas */
+.table-toolbar{
+  background:
+    radial-gradient(circle at 98% 0%,rgba(168,7,18,.045),transparent 23%),
+    linear-gradient(135deg,#fffdfa 0%,#f8f1eb 100%)!important;
+  border-color:#e2d6cd!important;
+}
+.card.card-table{
+  background:linear-gradient(180deg,#fff 0%,#fdf9f6 100%)!important;
+}
+.card.card-table .table-wrap{
+  background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(250,245,241,.72));
+}
+
+/* Cards das telas de fechamento, relatórios e configurações */
+.grid-2 > .card:nth-child(odd),
+.report-grid > .card:nth-child(odd),
+.settings-grid .stack > .card:nth-child(odd){
+  background:
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 24%),
+    linear-gradient(145deg,#fff 0%,#fff8f4 100%)!important;
+}
+.grid-2 > .card:nth-child(even),
+.report-grid > .card:nth-child(even),
+.settings-grid .stack > .card:nth-child(even){
+  background:
+    radial-gradient(circle at 0% 100%,rgba(228,171,46,.075),transparent 24%),
+    linear-gradient(145deg,#fff 0%,#faf4ed 100%)!important;
+}
+.card > .card-head{
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(250,244,239,.72))!important;
+}
+.card > .card-body{
+  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(247,239,233,.28));
+}
+
+/* Atalhos e cartões da equipe */
+.quick{
+  background:linear-gradient(145deg,#fff 0%,#f8f1eb 100%)!important;
+}
+.quick:nth-child(even){
+  background:linear-gradient(145deg,#fff 0%,#fff7ec 100%)!important;
+}
+.courier-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 25%),
+    linear-gradient(145deg,#fff 0%,#faf3ee 100%)!important;
+}
+.courier-card:nth-child(even){
+  background:
+    radial-gradient(circle at 0% 100%,rgba(228,171,46,.08),transparent 26%),
+    linear-gradient(145deg,#fff 0%,#fff8ed 100%)!important;
+}
+
+/* Dashboard: cards deixam de parecer caixas totalmente brancas */
+.stat{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 28%),
+    linear-gradient(145deg,#fff 0%,#faf4ef 100%)!important;
+}
+.stat:nth-child(even){
+  background:
+    radial-gradient(circle at 0% 100%,rgba(228,171,46,.07),transparent 28%),
+    linear-gradient(145deg,#fff 0%,#fff9ef 100%)!important;
+}
+
+/* Espaço visual entre grupos */
+.page .grid-2,
+.page .dashboard-grid,
+.page .stats,
+.page .courier-grid{
+  position:relative;
+}
+
+/* Mobile: mantém os degradês, com menos sombra */
+@media(max-width:700px){
+  .form-body{padding:14px!important}
+  .form-section{padding:18px!important;box-shadow:0 8px 20px rgba(65,33,23,.045)!important}
+  .form-section-head{margin:-18px -18px 18px;padding:17px 18px 15px}
+  .form-section:before{top:14px;bottom:14px;width:3px}
+}
+
+@media(prefers-reduced-motion:reduce){
+  .form-section,.payment-card,.quick,.stat,.courier-card{transition:none!important}
+}
