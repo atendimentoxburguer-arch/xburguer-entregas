@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-db-live1';
+  const version = '20260911-db-prod2';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -17,8 +17,6 @@
 
   async function startSystem() {
     try {
-      // A configuração é carregada antes do núcleo para que a conexão online possa
-      // ser ativada automaticamente assim que o projeto Supabase dedicado for ligado.
       await loadScript(`./supabase-config.js?v=${version}`);
       await loadScript(`./app-core.js?v=${version}`);
     } catch (error) {
@@ -27,7 +25,6 @@
     }
 
     const complements = [
-      // Impede que o login local antigo libere o sistema quando o Supabase está ativo.
       'cloud-auth-guard.js',
       'database-prep.js',
       'confirm-ui.js',
@@ -40,9 +37,11 @@
       'payment-confirmation-pro.js',
       'operations-pro.js',
       'closing-history.js',
-      // Mantido no fim para envolver o save() definitivo, restaurar sessão e sincronizar.
+      // Assume autenticação e sincronização remota.
       'database-cloud.js',
-      // Primeiro acesso e alteração segura de e-mail/senha pelo Supabase Auth.
+      // Reserva o número do pedido no Supabase antes de cadastrar, evitando colisões.
+      'atomic-delivery-code.js',
+      // Produção: somente login existente e alteração segura de credenciais.
       'auth-onboarding.js'
     ];
 
@@ -50,7 +49,6 @@
       try {
         await loadScript(`./${file}?v=${version}`);
       } catch (error) {
-        // Um complemento com problema não impede os demais recursos de iniciarem.
         console.error(`[X-Burguer] Não foi possível carregar ${file}:`, error);
       }
     }
