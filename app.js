@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-prod-audit1';
+  const version = '20260911-prod-audit2';
 
   const loadScript = src => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -28,6 +28,8 @@
       'cloud-auth-guard.js',
       'database-prep.js',
       'confirm-ui.js',
+      // Contrato de produção: dados, restauração, status de nuvem e ações críticas.
+      'system-production-v2.js',
       'system-update.js',
       'closing-summary.js',
       'ticket-average.js',
