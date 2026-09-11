@@ -101,6 +101,8 @@ create trigger daily_closings_set_updated_at
 before update on public.daily_closings
 for each row execute function public.xb_set_updated_at();
 
+-- Reserva números de pedido de forma atômica entre todos os aparelhos do mesmo usuário.
+-- Também se recupera automaticamente caso o contador fique atrás do maior código já salvo.
 create or replace function public.xb_next_delivery_code()
 returns bigint
 language plpgsql
@@ -109,22 +111,35 @@ set search_path = public
 as $$
 declare
   current_user_id uuid := auth.uid();
-  next_code bigint;
+  reserved_code bigint;
 begin
   if current_user_id is null then
     raise exception 'Usuário não autenticado';
   end if;
 
-  insert into public.app_settings (user_id)
-  values (current_user_id)
+  insert into public.app_settings (user_id, next_delivery_code)
+  values (
+    current_user_id,
+    greatest(
+      1,
+      coalesce((select max(code) + 1 from public.deliveries where user_id = current_user_id), 1)
+    )
+  )
   on conflict (user_id) do nothing;
 
   update public.app_settings
-     set next_delivery_code = next_delivery_code + 1
+     set next_delivery_code = greatest(
+       next_delivery_code,
+       coalesce((select max(code) + 1 from public.deliveries where user_id = current_user_id), 1)
+     ) + 1
    where user_id = current_user_id
-   returning next_delivery_code - 1 into next_code;
+   returning next_delivery_code - 1 into reserved_code;
 
-  return next_code;
+  if reserved_code is null then
+    raise exception 'Não foi possível reservar o número do pedido';
+  end if;
+
+  return reserved_code;
 end;
 $$;
 
