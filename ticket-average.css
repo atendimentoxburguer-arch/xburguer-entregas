@@ -1,0 +1,32 @@
+/* Ticket médio — dashboard e fechamento */
+#dashboardStats.stats,
+#closingStats.stats{
+  grid-template-columns:repeat(5,minmax(0,1fr));
+}
+
+#dashboardStats .stat:last-child,
+#closingStats .stat:last-child{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(116,80,182,.08),transparent 30%),
+    linear-gradient(145deg,#fff 0%,#f7f2fc 100%)!important;
+}
+
+#dashboardStats .stat:last-child:before,
+#closingStats .stat:last-child:before{
+  background:linear-gradient(90deg,#7450b6,#9a78d2,#e4ab2e)!important;
+}
+
+@media(max-width:1350px){
+  #dashboardStats.stats,
+  #closingStats.stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+@media(max-width:900px){
+  #dashboardStats.stats,
+  #closingStats.stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+@media(max-width:480px){
+  #dashboardStats.stats,
+  #closingStats.stats{grid-template-columns:1fr}
+}
