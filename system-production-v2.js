@@ -9,7 +9,6 @@
   const SNAPSHOT_KEYS = [RECOVERY_KEY, PREVIOUS_KEY, 'xb_cloud_pre_migration_backup_v1'];
 
   const clone = value => JSON.parse(JSON.stringify(value));
-  const nowIso = () => new Date().toISOString();
 
   function notify(message, type = 'ok') {
     if (typeof toast === 'function') toast(message, type);
@@ -42,7 +41,6 @@
       if (item.status !== 'Entregue') item.paymentConfirmedAt = '';
     });
 
-    // Remove somente a antiga equipe de demonstração, sem tocar em dados reais.
     const sample = new Map([
       ['carlos', 'Carlos Oliveira'],
       ['ana', 'Ana Paula'],
@@ -145,21 +143,24 @@
     const badge = document.getElementById('xbCloudBadge');
     const visual = cloudVisualState();
     if (badge) {
-      badge.className = `xb-cloud-badge ${visual.klass}`;
+      const nextClass = `xb-cloud-badge ${visual.klass}`;
+      if (badge.className !== nextClass) badge.className = nextClass;
       const label = badge.querySelector('.xb-cloud-label');
-      if (label) label.textContent = visual.text;
-      badge.title = window.XBCloud?.state?.lastSyncAt
+      if (label && label.textContent !== visual.text) label.textContent = visual.text;
+      const nextTitle = window.XBCloud?.state?.lastSyncAt
         ? `Última sincronização: ${new Date(window.XBCloud.state.lastSyncAt).toLocaleString('pt-BR')}`
         : visual.text;
+      if (badge.title !== nextTitle) badge.title = nextTitle;
     }
 
     const submit = document.querySelector('#deliveryForm button[type="submit"]');
     if (submit) {
       const offline = !navigator.onLine;
-      submit.disabled = offline;
-      submit.title = offline
+      if (submit.disabled !== offline) submit.disabled = offline;
+      const nextTitle = offline
         ? 'Conecte à internet para reservar com segurança o número do pedido.'
         : '';
+      if (submit.title !== nextTitle) submit.title = nextTitle;
     }
   }
 
@@ -320,20 +321,11 @@
   installSyncBadge();
   installSecureBackupRestore();
   installDestructiveGuards();
-
-  const observer = new MutationObserver(() => {
-    updateStaticUi();
-    installSyncButton();
-    updateSyncUi();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  installSyncButton();
+  updateSyncUi();
 
   ['online', 'offline', 'xb:cloud-ready', 'xb:cloud-synced', 'xb:cloud-pulled'].forEach(name => {
     window.addEventListener(name, updateSyncUi);
   });
   setInterval(updateSyncUi, 1500);
-  setTimeout(() => {
-    installSyncButton();
-    updateSyncUi();
-  }, 0);
 })();
