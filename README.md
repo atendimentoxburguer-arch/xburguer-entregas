@@ -16,26 +16,28 @@ Sistema web responsivo e instalável como aplicativo para controle interno de en
 - Backup e restauração em JSON
 - PWA instalável em celular e computador
 - Banco online Supabase com sincronização automática e atualização entre aparelhos
-- Armazenamento local mantido como apoio para uso offline e recuperação
+- Armazenamento local mantido como apoio para recuperação e uso das telas já carregadas
+- Numeração de pedidos reservada de forma atômica no Supabase para evitar duplicidade entre aparelhos
 
 ## Banco de dados
 
-O projeto dedicado do Supabase já está conectado ao aplicativo. A aplicação usa somente a URL do projeto e a chave publicável no frontend; nenhuma chave administrativa ou senha do banco é exposta no GitHub Pages.
+O projeto dedicado do Supabase está conectado ao aplicativo. A aplicação usa somente a URL do projeto e a chave publicável no frontend; nenhuma chave administrativa ou senha do banco é exposta no GitHub Pages.
 
 As tabelas usam Row Level Security (RLS), e as alterações de entregas, entregadores, configurações e fechamentos são sincronizadas automaticamente após o usuário entrar com Supabase Auth.
 
-Na primeira autenticação, se o banco ainda estiver vazio e houver dados locais neste aparelho, o sistema faz a migração inicial automaticamente e guarda uma cópia local antes do envio.
+A criação de uma nova entrega reserva primeiro o número do pedido no banco por meio da função `xb_next_delivery_code()`. Isso evita que dois aparelhos recebam o mesmo número ao cadastrar pedidos ao mesmo tempo. Para manter essa garantia, novos pedidos precisam de conexão com a internet no momento do cadastro.
 
-## Primeiro acesso
+## Acesso em produção
 
-Na tela de login, informe o e-mail que será usado no sistema e crie uma senha nova com pelo menos 8 caracteres. Use o botão **Criar primeiro acesso seguro** apenas uma vez.
+O cadastro inicial já foi concluído e o botão de criação de primeiro acesso foi removido da tela de login. Em novos aparelhos, basta entrar com o mesmo e-mail e senha já cadastrados no Supabase Auth.
 
-Em projetos Supabase hospedados, a confirmação de e-mail pode ser solicitada. Depois de confirmar, volte ao aplicativo e faça login normalmente. A sessão fica salva e as próximas conexões acontecem automaticamente.
+A área **Configurações > Acesso seguro** continua disponível para alterar o e-mail ou a senha da conta existente.
 
 ## Segurança
 
-- a senha antiga `123456` não é aceita como nova senha;
 - a senha do usuário é gerenciada pelo Supabase Auth e não é gravada nas tabelas do aplicativo;
 - RLS limita os dados ao usuário autenticado;
 - o frontend usa apenas a chave publicável;
+- a numeração dos pedidos possui restrição única no banco e reserva atômica;
+- respostas do Supabase, autenticação, APIs e CDNs externas não são armazenadas pelo service worker;
 - nunca adicionar `service_role`, senha do banco ou outros segredos ao repositório.
