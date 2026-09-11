@@ -1,23 +1,56 @@
-/* X-Burguer Entregas — degradês suaves entre blocos */
+/* X-Burguer Entregas — degradês visíveis e suaves nos blocos */
 :root{
-  --panel-cream:#fffaf6;
-  --panel-blush:#fff4f3;
-  --panel-gold:#fff8e9;
-  --panel-warm:#f7efe8;
-  --panel-line:#eadfd7;
+  --panel-cream:#fff9f4;
+  --panel-cream-2:#f8eee6;
+  --panel-blush:#fff1f2;
+  --panel-blush-2:#f8e7e9;
+  --panel-gold:#fff7df;
+  --panel-gold-2:#f7ecd2;
+  --panel-warm:#f4e8df;
+  --panel-line:#e6d8ce;
+  --panel-shadow:0 12px 30px rgba(67,34,24,.075);
 }
 
-/* Fundo das áreas internas para quebrar o excesso de branco */
+/* Base geral: todos os blocos deixam de ser branco chapado */
+.card,
+.stat,
+.courier-card,
+.settings-action,
+.quick,
+.table-toolbar,
+.modal-card{
+  border-color:var(--panel-line)!important;
+  box-shadow:var(--panel-shadow)!important;
+}
+
+.card{
+  background:
+    radial-gradient(circle at 96% 0%,rgba(168,7,18,.055),transparent 26%),
+    linear-gradient(145deg,#fffdfb 0%,#fbf3ed 62%,#f4e8df 100%)!important;
+}
+.card > .card-head{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.93) 0%,rgba(250,241,234,.88) 100%)!important;
+  border-bottom-color:#e7d9cf!important;
+}
+.card > .card-body{
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.18) 0%,rgba(244,232,223,.42) 100%)!important;
+}
+
+/* Área principal de formulários */
 .form-card > .card-head{
-  background:linear-gradient(115deg,#fff 0%,#fff9f4 58%,#fff4ec 100%)!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(228,171,46,.10),transparent 24%),
+    linear-gradient(115deg,#fffdfa 0%,#fff4ee 62%,#f6e8df 100%)!important;
 }
 .form-body{
   position:relative;
   isolation:isolate;
   background:
-    radial-gradient(circle at 94% 4%,rgba(168,7,18,.055),transparent 22%),
-    radial-gradient(circle at 5% 92%,rgba(228,171,46,.09),transparent 25%),
-    linear-gradient(180deg,#fbf6f1 0%,#f6eee7 100%)!important;
+    radial-gradient(circle at 94% 4%,rgba(168,7,18,.075),transparent 24%),
+    radial-gradient(circle at 4% 92%,rgba(228,171,46,.12),transparent 28%),
+    linear-gradient(180deg,#fbf5ef 0%,#f2e6dd 100%)!important;
 }
 .form-body:before{
   content:"";
@@ -25,16 +58,15 @@
   inset:0;
   z-index:-1;
   pointer-events:none;
-  opacity:.48;
-  background:linear-gradient(135deg,rgba(255,255,255,.82),transparent 44%,rgba(168,7,18,.025) 76%,transparent);
+  background:linear-gradient(135deg,rgba(255,255,255,.55),transparent 42%,rgba(168,7,18,.025) 75%,rgba(228,171,46,.04));
 }
 
-/* Cada etapa recebe um tom levemente diferente */
+/* Etapas do formulário: degradê mais perceptível */
 .form-section{
   position:relative;
   overflow:hidden;
-  border-color:var(--panel-line)!important;
-  box-shadow:0 12px 28px rgba(65,33,23,.055)!important;
+  border:1px solid #e5d6cc!important;
+  box-shadow:0 14px 32px rgba(68,34,23,.07)!important;
 }
 .form-section:before{
   content:"";
@@ -42,54 +74,50 @@
   left:0;
   top:18px;
   bottom:18px;
-  width:4px;
+  width:5px;
   border-radius:0 999px 999px 0;
-  background:linear-gradient(180deg,#a80712,#d21b27,#e4ab2e);
-  opacity:.72;
+  background:linear-gradient(180deg,#a80712 0%,#d21b27 48%,#e4ab2e 100%);
+  opacity:.78;
 }
-.form-section:nth-of-type(1){
+.form-section:nth-of-type(3n+1){
   background:
-    radial-gradient(circle at 96% 0%,rgba(168,7,18,.065),transparent 27%),
-    linear-gradient(135deg,#fffdfb 0%,#fff7f5 58%,#f9eee9 100%)!important;
+    radial-gradient(circle at 96% 0%,rgba(168,7,18,.095),transparent 30%),
+    linear-gradient(135deg,#fffdfb 0%,#fff2f1 58%,#f7e6e4 100%)!important;
 }
-.form-section:nth-of-type(2){
+.form-section:nth-of-type(3n+2){
   background:
-    radial-gradient(circle at 6% 4%,rgba(228,171,46,.10),transparent 26%),
-    linear-gradient(135deg,#fffefa 0%,#fff9ee 55%,#f8f0e7 100%)!important;
+    radial-gradient(circle at 5% 0%,rgba(228,171,46,.14),transparent 28%),
+    linear-gradient(135deg,#fffdf8 0%,#fff5df 56%,#f5e8d3 100%)!important;
 }
-.form-section:nth-of-type(3){
+.form-section:nth-of-type(3n){
   background:
-    radial-gradient(circle at 96% 7%,rgba(168,7,18,.055),transparent 24%),
-    radial-gradient(circle at 4% 96%,rgba(228,171,46,.08),transparent 25%),
-    linear-gradient(135deg,#fffdfb 0%,#fdf6f1 52%,#f6ede6 100%)!important;
+    radial-gradient(circle at 95% 4%,rgba(168,7,18,.07),transparent 27%),
+    radial-gradient(circle at 4% 96%,rgba(228,171,46,.11),transparent 28%),
+    linear-gradient(135deg,#fffdf9 0%,#f9efe7 55%,#f0e1d7 100%)!important;
 }
-.form-section + .form-section{
-  margin-top:20px!important;
-}
-
-/* Cabeçalho de cada etapa também ganha profundidade */
+.form-section + .form-section{margin-top:22px!important}
 .form-section-head{
   margin:-22px -22px 20px;
   padding:20px 22px 17px;
-  border-bottom:1px solid rgba(221,207,197,.78);
-  background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.18));
+  border-bottom:1px solid rgba(218,201,190,.9);
+  background:linear-gradient(180deg,rgba(255,255,255,.66),rgba(255,255,255,.20));
 }
 .form-section-head .step{
-  background:linear-gradient(145deg,#8f050d,#ca1621)!important;
-  border:1px solid rgba(255,255,255,.26);
-  box-shadow:0 10px 24px rgba(159,7,16,.18)!important;
+  background:linear-gradient(145deg,#8b040c,#cb1722)!important;
+  border:1px solid rgba(255,255,255,.30);
+  box-shadow:0 10px 24px rgba(159,7,16,.20)!important;
 }
 
-/* Campos: branco suave em vez de branco puro */
+/* Campos continuam claros, mas com profundidade */
 .field input,
 .field select,
 .field textarea,
 .search-control input,
 .toolbar-filters select,
 .head-select{
-  background:linear-gradient(180deg,#fffefd 0%,#fcf8f5 100%)!important;
-  border-color:#d9ccc3!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 4px 12px rgba(60,31,22,.025)!important;
+  background:linear-gradient(180deg,#fffefd 0%,#faf4ef 100%)!important;
+  border-color:#d7c9bf!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 5px 14px rgba(60,31,22,.03)!important;
 }
 .field input:hover,
 .field select:hover,
@@ -97,7 +125,8 @@
 .search-control input:hover,
 .toolbar-filters select:hover,
 .head-select:hover{
-  background:#fff!important;
+  background:linear-gradient(180deg,#fff 0%,#fdf8f4 100%)!important;
+  border-color:#c9b7ab!important;
 }
 .field input:focus,
 .field select:focus,
@@ -108,107 +137,121 @@
   background:#fff!important;
 }
 
-/* Pagamentos ficam distintos sem poluir */
+/* Pagamentos */
 .payment-card{
   background:
-    radial-gradient(circle at 100% 0%,rgba(228,171,46,.08),transparent 28%),
-    linear-gradient(145deg,#fffefd 0%,#faf3ed 100%)!important;
+    radial-gradient(circle at 100% 0%,rgba(228,171,46,.11),transparent 31%),
+    linear-gradient(145deg,#fffefd 0%,#f8eee7 100%)!important;
+  border-color:#dfd0c6!important;
 }
 .payment-option:nth-child(2) .payment-card{
-  background:linear-gradient(145deg,#fff 0%,#f5faf8 100%)!important;
+  background:linear-gradient(145deg,#fffefd 0%,#edf7f3 100%)!important;
 }
 .payment-option:nth-child(3) .payment-card{
-  background:linear-gradient(145deg,#fff 0%,#f6f7fb 100%)!important;
+  background:linear-gradient(145deg,#fffefd 0%,#eef1f9 100%)!important;
 }
 .payment-option:nth-child(4) .payment-card{
-  background:linear-gradient(145deg,#fff 0%,#f5f8f3 100%)!important;
+  background:linear-gradient(145deg,#fffefd 0%,#eef6eb 100%)!important;
 }
 .payment-option input:checked + .payment-card{
   background:
-    radial-gradient(circle at 100% 0%,rgba(228,171,46,.10),transparent 28%),
-    linear-gradient(145deg,#fff9f8,#ffeded)!important;
+    radial-gradient(circle at 100% 0%,rgba(228,171,46,.13),transparent 30%),
+    linear-gradient(145deg,#fff8f8 0%,#ffe9eb 100%)!important;
+  box-shadow:0 0 0 3px rgba(168,7,18,.08),0 12px 28px rgba(159,7,16,.09)!important;
 }
 
-/* Barras de filtros e tabelas */
+/* Dashboard */
+.stat{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.075),transparent 31%),
+    linear-gradient(145deg,#fffdfb 0%,#f8eee8 100%)!important;
+}
+.stats .stat:nth-child(2){
+  background:linear-gradient(145deg,#fffdfb 0%,#eef3fb 100%)!important;
+}
+.stats .stat:nth-child(3){
+  background:linear-gradient(145deg,#fffdfb 0%,#edf7f1 100%)!important;
+}
+.stats .stat:nth-child(4){
+  background:linear-gradient(145deg,#fffdfb 0%,#fff2dc 100%)!important;
+}
+.quick{
+  background:linear-gradient(145deg,#fffdfb 0%,#f7ece5 100%)!important;
+}
+.quick:nth-child(even){
+  background:linear-gradient(145deg,#fffdfb 0%,#fff3dc 100%)!important;
+}
+
+/* Entregadores */
+.courier-card{
+  background:
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.07),transparent 28%),
+    linear-gradient(145deg,#fffdfb 0%,#f7ece6 100%)!important;
+}
+.courier-card:nth-child(even){
+  background:
+    radial-gradient(circle at 0% 100%,rgba(228,171,46,.11),transparent 28%),
+    linear-gradient(145deg,#fffdfb 0%,#fff1da 100%)!important;
+}
+
+/* Busca, filtros e tabelas */
 .table-toolbar{
   background:
-    radial-gradient(circle at 98% 0%,rgba(168,7,18,.045),transparent 23%),
-    linear-gradient(135deg,#fffdfa 0%,#f8f1eb 100%)!important;
-  border-color:#e2d6cd!important;
+    radial-gradient(circle at 98% 0%,rgba(168,7,18,.065),transparent 25%),
+    linear-gradient(135deg,#fffdf9 0%,#f5e9df 100%)!important;
+  border-color:#decec3!important;
 }
 .card.card-table{
-  background:linear-gradient(180deg,#fff 0%,#fdf9f6 100%)!important;
+  background:linear-gradient(180deg,#fffdfa 0%,#f4e8df 100%)!important;
 }
 .card.card-table .table-wrap{
-  background:linear-gradient(180deg,rgba(255,255,255,.88),rgba(250,245,241,.72));
+  background:linear-gradient(180deg,rgba(255,255,255,.90),rgba(246,236,228,.78))!important;
 }
+.table-wrap table{background:transparent!important}
+.table-wrap tbody tr:nth-child(even){background:rgba(248,239,232,.62)}
+.table-wrap tbody tr:hover{background:rgba(255,239,236,.82)!important}
 
-/* Cards das telas de fechamento, relatórios e configurações */
+/* Relatórios, fechamento e configurações */
 .grid-2 > .card:nth-child(odd),
 .report-grid > .card:nth-child(odd),
 .settings-grid .stack > .card:nth-child(odd){
   background:
-    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 24%),
-    linear-gradient(145deg,#fff 0%,#fff8f4 100%)!important;
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.065),transparent 27%),
+    linear-gradient(145deg,#fffdfb 0%,#faece8 100%)!important;
 }
 .grid-2 > .card:nth-child(even),
 .report-grid > .card:nth-child(even),
 .settings-grid .stack > .card:nth-child(even){
   background:
-    radial-gradient(circle at 0% 100%,rgba(228,171,46,.075),transparent 24%),
-    linear-gradient(145deg,#fff 0%,#faf4ed 100%)!important;
+    radial-gradient(circle at 0% 100%,rgba(228,171,46,.11),transparent 27%),
+    linear-gradient(145deg,#fffdf9 0%,#f8edd9 100%)!important;
 }
-.card > .card-head{
-  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(250,244,239,.72))!important;
+.settings-action{
+  background:linear-gradient(145deg,#fffdfb 0%,#f5e9e1 100%)!important;
 }
-.card > .card-body{
-  background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(247,239,233,.28));
+.settings-action:hover{
+  background:linear-gradient(145deg,#fffaf7 0%,#efe0d6 100%)!important;
 }
-
-/* Atalhos e cartões da equipe */
-.quick{
-  background:linear-gradient(145deg,#fff 0%,#f8f1eb 100%)!important;
-}
-.quick:nth-child(even){
-  background:linear-gradient(145deg,#fff 0%,#fff7ec 100%)!important;
-}
-.courier-card{
-  background:
-    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 25%),
-    linear-gradient(145deg,#fff 0%,#faf3ee 100%)!important;
-}
-.courier-card:nth-child(even){
-  background:
-    radial-gradient(circle at 0% 100%,rgba(228,171,46,.08),transparent 26%),
-    linear-gradient(145deg,#fff 0%,#fff8ed 100%)!important;
+.danger-card{
+  background:linear-gradient(145deg,#fffafa 0%,#fbe8ea 100%)!important;
 }
 
-/* Dashboard: cards deixam de parecer caixas totalmente brancas */
-.stat{
+/* Modais */
+.modal-card{
   background:
-    radial-gradient(circle at 100% 0%,rgba(168,7,18,.045),transparent 28%),
-    linear-gradient(145deg,#fff 0%,#faf4ef 100%)!important;
+    radial-gradient(circle at 100% 0%,rgba(168,7,18,.065),transparent 27%),
+    linear-gradient(160deg,#fffdfb 0%,#f7ece5 100%)!important;
 }
-.stat:nth-child(even){
-  background:
-    radial-gradient(circle at 0% 100%,rgba(228,171,46,.07),transparent 28%),
-    linear-gradient(145deg,#fff 0%,#fff9ef 100%)!important;
+.modal-head{
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(247,235,226,.86))!important;
 }
 
-/* Espaço visual entre grupos */
-.page .grid-2,
-.page .dashboard-grid,
-.page .stats,
-.page .courier-grid{
-  position:relative;
-}
-
-/* Mobile: mantém os degradês, com menos sombra */
+/* Mobile */
 @media(max-width:700px){
   .form-body{padding:14px!important}
-  .form-section{padding:18px!important;box-shadow:0 8px 20px rgba(65,33,23,.045)!important}
+  .form-section{padding:18px!important;box-shadow:0 9px 22px rgba(65,33,23,.055)!important}
   .form-section-head{margin:-18px -18px 18px;padding:17px 18px 15px}
-  .form-section:before{top:14px;bottom:14px;width:3px}
+  .form-section:before{top:14px;bottom:14px;width:4px}
 }
 
 @media(prefers-reduced-motion:reduce){
