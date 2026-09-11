@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v9`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v10`;
 
 const APP_SHELL = [
   './',
@@ -88,6 +88,24 @@ async function cacheFirst(request) {
   }
 }
 
+async function staleWhileRevalidate(request, event) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request, { ignoreSearch: true });
+
+  const refresh = fetch(request).then(response => {
+    if (response && (response.ok || response.type === 'opaque')) {
+      cache.put(request, response.clone()).catch(() => {});
+    }
+    return response;
+  }).catch(() => null);
+
+  event.waitUntil(refresh.then(() => undefined).catch(() => undefined));
+  if (cached) return cached;
+
+  const response = await refresh;
+  return response || Response.error();
+}
+
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -95,14 +113,21 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
 
-  // Nunca intercepta Supabase, autenticação, APIs ou CDNs externas.
-  // Assim respostas do banco não ficam presas no cache do aplicativo.
+  // Supabase, autenticação, APIs e CDNs externas nunca passam pelo cache local.
   if (!isSameOrigin) return;
 
   const isCode = /\.(?:html?|js|css|webmanifest)$/i.test(url.pathname);
 
-  if (request.mode === 'navigate' || isCode) {
+  // A navegação consulta a rede para descobrir rapidamente uma nova versão.
+  if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Depois da primeira abertura, código e estilos entram imediatamente do cache.
+  // A atualização acontece em segundo plano, reduzindo espera e uso de recursos.
+  if (isCode) {
+    event.respondWith(staleWhileRevalidate(request, event));
     return;
   }
 
