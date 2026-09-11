@@ -136,6 +136,15 @@
     if (button && !isStandalone()) button.classList.add('show');
   }
 
+  async function registerAppWorker() {
+    try {
+      await navigator.serviceWorker.register('./service-worker.js?v=20260911-1518', { scope: './' });
+      if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+    } catch (error) {
+      console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
+    }
+  }
+
   ensureHeadMeta();
 
   if (isStandalone()) {
@@ -160,13 +169,7 @@
   }
 
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
-      try {
-        await navigator.serviceWorker.register('./service-worker.js?v=20260911-1518', { scope: './' });
-        if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
-      } catch (error) {
-        console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
-      }
-    }, { once: true });
+    if (document.readyState === 'complete') registerAppWorker();
+    else window.addEventListener('load', registerAppWorker, { once: true });
   }
 })();
