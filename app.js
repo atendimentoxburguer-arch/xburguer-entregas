@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-change1';
+  const version = '20260911-reportday1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -84,6 +84,8 @@
     const deferred = [
       'ticket-average.js',
       'operations-pro.js',
+      // Permite analisar um dia específico sem perder os filtros por período.
+      'report-date-filter.js',
       'closing-history.js'
     ];
 
