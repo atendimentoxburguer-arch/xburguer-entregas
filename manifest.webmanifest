@@ -1,0 +1,29 @@
+{
+  "id": "./",
+  "name": "X-Burguer Entregas",
+  "short_name": "X-Burguer",
+  "description": "Central interna de entregas, pagamentos, entregadores, fechamento e relatórios da X-Burguer.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f6f2ed",
+  "theme_color": "#93040d",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
