@@ -327,5 +327,13 @@
   ['online', 'offline', 'xb:cloud-ready', 'xb:cloud-synced', 'xb:cloud-pulled'].forEach(name => {
     window.addEventListener(name, updateSyncUi);
   });
-  setInterval(updateSyncUi, 1500);
+
+  // O estado do banco já é atualizado por eventos. Esta checagem é apenas de
+  // segurança e roda com baixa frequência, evitando trabalho contínuo de DOM.
+  setInterval(() => {
+    if (!document.hidden) updateSyncUi();
+  }, 6000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) updateSyncUi();
+  });
 })();
