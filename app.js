@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-business4';
+  const version = '20260911-business5';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -69,15 +69,15 @@
       'payment-confirmation-pro.js',
       'production-hardening.js',
       'database-cloud-v2.js',
+      // Protege e corrige a taxa antes de qualquer cadastro/edição ser persistido.
+      'courier-fee-consistency.js',
       'atomic-delivery-code.js',
       'auth-onboarding.js',
       'currency-inputs.js',
       // Calcula automaticamente quanto de troco precisa ir com o entregador.
       'change-calculator.js',
       // Regras finais: pago online não exige conferência e cancelamento mantém taxa.
-      'business-rules-v2.js',
-      // Mantém quantidade e total de taxas do entregador sempre coerentes.
-      'courier-fee-consistency.js'
+      'business-rules-v2.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
