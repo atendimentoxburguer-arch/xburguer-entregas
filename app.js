@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-business3';
+  const version = '20260911-business4';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -75,7 +75,9 @@
       // Calcula automaticamente quanto de troco precisa ir com o entregador.
       'change-calculator.js',
       // Regras finais: pago online não exige conferência e cancelamento mantém taxa.
-      'business-rules-v2.js'
+      'business-rules-v2.js',
+      // Mantém quantidade e total de taxas do entregador sempre coerentes.
+      'courier-fee-consistency.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
