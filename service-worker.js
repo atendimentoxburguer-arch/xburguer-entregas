@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v13`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v14`;
 
 const APP_SHELL = [
   './',
@@ -65,20 +65,21 @@ self.addEventListener('activate', event => {
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
     return response;
   } catch {
-    return (await cache.match(request, { ignoreSearch: true })) ||
+    return (await cache.match(request)) ||
+      (await cache.match(request, { ignoreSearch: true })) ||
       (request.mode === 'navigate' ? await cache.match('./index.html') : Response.error());
   }
 }
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request, { ignoreSearch: true });
+  const cached = (await cache.match(request)) || (await cache.match(request, { ignoreSearch: true }));
   if (cached) return cached;
   try {
     const response = await fetch(request);
@@ -93,7 +94,10 @@ async function cacheFirst(request) {
 
 async function staleWhileRevalidate(request, event) {
   const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request, { ignoreSearch: true });
+
+  // Para arquivos com ?v=, só reutilizamos exatamente a mesma versão.
+  // Isso impede que uma versão antiga do sistema seja servida quando o loader muda.
+  const cached = await cache.match(request);
 
   const refresh = fetch(request).then(response => {
     if (response && (response.ok || response.type === 'opaque')) {
@@ -106,7 +110,10 @@ async function staleWhileRevalidate(request, event) {
   if (cached) return cached;
 
   const response = await refresh;
-  return response || Response.error();
+  if (response) return response;
+
+  // Em modo offline, uma cópia sem query ainda pode manter o sistema utilizável.
+  return (await cache.match(request, { ignoreSearch: true })) || Response.error();
 }
 
 self.addEventListener('fetch', event => {
@@ -120,15 +127,15 @@ self.addEventListener('fetch', event => {
   if (!isSameOrigin) return;
 
   const isCode = /\.(?:html?|js|css|webmanifest)$/i.test(url.pathname);
+  const isLoader = /\/app\.js$/i.test(url.pathname);
 
-  // A navegação consulta a rede para descobrir rapidamente uma nova versão.
-  if (request.mode === 'navigate') {
+  // Navegação e loader principal consultam a rede primeiro para aplicar correções imediatamente.
+  if (request.mode === 'navigate' || isLoader) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Depois da primeira abertura, código e estilos entram imediatamente do cache.
-  // A atualização acontece em segundo plano, reduzindo espera e uso de recursos.
+  // Demais arquivos de código usam a versão exata do cache; versões novas vão à rede.
   if (isCode) {
     event.respondWith(staleWhileRevalidate(request, event));
     return;
