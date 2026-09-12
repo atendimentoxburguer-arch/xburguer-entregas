@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-business2';
+  const version = '20260911-business3';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
