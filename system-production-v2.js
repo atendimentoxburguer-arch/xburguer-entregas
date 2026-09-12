@@ -38,7 +38,12 @@
     scrubSecrets(normalized);
     (normalized.deliveries || []).forEach(item => {
       if (item.status === 'Em rota') item.status = 'Aguardando';
-      if (item.status !== 'Entregue') item.paymentConfirmedAt = '';
+      // Pago online já nasce quitado e continua confirmado mesmo enquanto aguarda entrega.
+      if (item.payment === 'Pago online') {
+        if (!item.paymentConfirmedAt) item.paymentConfirmedAt = item.createdAt || new Date().toISOString();
+      } else if (item.status !== 'Entregue') {
+        item.paymentConfirmedAt = '';
+      }
     });
 
     const sample = new Map([
