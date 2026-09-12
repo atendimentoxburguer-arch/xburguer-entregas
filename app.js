@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912-integrity1';
+  const version = '20260912-integrity2';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
