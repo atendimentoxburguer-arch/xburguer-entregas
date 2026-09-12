@@ -66,9 +66,133 @@
 /* Pequeno refinamento em campos formatados automaticamente */
 .field input[data-auto-format="phone"]{font-variant-numeric:tabular-nums;letter-spacing:.01em}
 
+/* =========================================================
+   TABELA DE ENTREGAS — alinhamento visual consistente
+   Mantém colunas, textos, status e ações na mesma linha-base.
+========================================================= */
+#deliveriesTable .table-wrap{overflow-x:auto;overflow-y:hidden}
+#deliveriesTable table{
+  width:100%;
+  min-width:1030px;
+  table-layout:fixed;
+  border-collapse:collapse;
+}
+#deliveriesTable thead th{
+  height:48px;
+  padding:0 12px;
+  vertical-align:middle;
+  line-height:1.2;
+}
+#deliveriesTable tbody tr{height:102px}
+#deliveriesTable tbody td{
+  padding:14px 12px;
+  vertical-align:middle;
+  line-height:1.4;
+}
+
+/* Larguras proporcionais da tabela. */
+#deliveriesTable th:nth-child(1),#deliveriesTable td:nth-child(1){width:64px}
+#deliveriesTable th:nth-child(2),#deliveriesTable td:nth-child(2){width:142px}
+#deliveriesTable th:nth-child(3),#deliveriesTable td:nth-child(3){width:96px}
+#deliveriesTable th:nth-child(4),#deliveriesTable td:nth-child(4){width:104px}
+#deliveriesTable th:nth-child(5),#deliveriesTable td:nth-child(5){width:110px}
+#deliveriesTable th:nth-child(6),#deliveriesTable td:nth-child(6){width:92px}
+#deliveriesTable th:nth-child(7),#deliveriesTable td:nth-child(7){width:124px}
+#deliveriesTable th:nth-child(8),#deliveriesTable td:nth-child(8){width:298px}
+
+/* Número/data sempre alinhados e com algarismos de largura estável. */
+#deliveriesTable td:nth-child(1){font-variant-numeric:tabular-nums}
+#deliveriesTable td:nth-child(1) .table-name{line-height:1.2}
+#deliveriesTable td:nth-child(1) .table-muted{margin-top:5px;line-height:1.45}
+
+/* Conteúdo textual com espaçamento vertical igual em todas as colunas. */
+#deliveriesTable .table-name{line-height:1.35}
+#deliveriesTable .table-muted{line-height:1.35}
+#deliveriesTable td:nth-child(2),
+#deliveriesTable td:nth-child(3),
+#deliveriesTable td:nth-child(4){overflow-wrap:anywhere}
+
+/* Pagamento: ícone, nome e informações auxiliares ficam no mesmo eixo. */
+#deliveriesTable td:nth-child(5) .payment-inline{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:22px;
+  line-height:1.2;
+}
+#deliveriesTable td:nth-child(5) .payment-inline svg{width:18px;height:18px;flex:0 0 auto}
+#deliveriesTable td:nth-child(5) .table-muted{margin-top:5px}
+#deliveriesTable .xb-online-paid-label{
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  margin-top:5px!important;
+  line-height:1.3!important;
+}
+
+/* Valores e taxa usam números tabulares para não parecerem desalinhados. */
+#deliveriesTable td:nth-child(6){font-variant-numeric:tabular-nums}
+#deliveriesTable td:nth-child(6) .table-name{line-height:1.2}
+#deliveriesTable td:nth-child(6) .table-muted{margin-top:5px;line-height:1.35}
+
+/* Status com altura fixa e centralização perfeita. */
+#deliveriesTable td:nth-child(7){white-space:nowrap}
+#deliveriesTable td:nth-child(7) .status{
+  min-height:30px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 10px;
+  line-height:1;
+}
+
+/* Ações: todos os botões têm a mesma altura e ficam no mesmo eixo horizontal. */
+#deliveriesTable td:nth-child(8){padding-left:10px;padding-right:10px}
+#deliveriesTable .row-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:6px;
+  flex-wrap:nowrap;
+  min-height:40px;
+  white-space:nowrap;
+}
+#deliveriesTable .row-actions>button{flex:0 0 auto;margin:0!important}
+#deliveriesTable .payment-confirm-btn{
+  min-width:156px;
+  height:38px;
+  min-height:38px;
+  padding:0 12px;
+  justify-content:center;
+}
+#deliveriesTable .row-actions .btn{
+  height:38px;
+  min-height:38px;
+  padding-top:0;
+  padding-bottom:0;
+}
+#deliveriesTable .row-actions .icon-btn{
+  width:34px;
+  height:34px;
+  min-width:34px;
+  min-height:34px;
+  display:inline-grid;
+  place-items:center;
+  padding:0;
+}
+#deliveriesTable .row-actions svg{flex:0 0 auto}
+
+/* Em telas menores a tabela preserva o alinhamento e rola horizontalmente. */
+@media(max-width:1180px){
+  #deliveriesTable table{min-width:1010px}
+  #deliveriesTable th:nth-child(8),#deliveriesTable td:nth-child(8){width:286px}
+  #deliveriesTable .payment-confirm-btn{min-width:148px;padding-left:10px;padding-right:10px}
+}
+
 @media(max-width:900px){
   .ops-pulse{align-items:flex-start;flex-wrap:wrap}
   .ops-pulse-items{order:3;width:100%;justify-content:flex-start;margin-left:57px}
+  #deliveriesTable tbody tr{height:96px}
 }
 @media(max-width:650px){
   .ops-pulse{padding:14px;border-radius:16px}
