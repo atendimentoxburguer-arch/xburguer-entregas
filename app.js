@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912-integrity2';
+  const version = '20260912-date1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -81,7 +81,9 @@
       // Calcula automaticamente quanto de troco precisa ir com o entregador.
       'change-calculator.js',
       // Regras finais: pago online não exige conferência e cancelamento mantém taxa.
-      'business-rules-v2.js'
+      'business-rules-v2.js',
+      // Mantém os indicadores de Entregas no mesmo período selecionado na tabela.
+      'delivery-date-scope.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
