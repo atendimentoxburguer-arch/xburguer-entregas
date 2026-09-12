@@ -101,6 +101,64 @@ create trigger daily_closings_set_updated_at
 before update on public.daily_closings
 for each row execute function public.xb_set_updated_at();
 
+-- Proteção de integridade das taxas.
+-- Taxas personalizadas positivas continuam permitidas, mas um entregador com taxa
+-- padrão positiva nunca pode receber acidentalmente R$ 0,00. Ao trocar o entregador,
+-- se a taxa ainda for a do anterior, o banco assume automaticamente a taxa do novo.
+create or replace function public.xb_guard_delivery_fee()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+  courier_default_fee numeric;
+begin
+  if new.fee is null then
+    new.fee := 0;
+  end if;
+
+  if new.courier_id is null then
+    if new.fee < 0 then
+      raise exception 'delivery fee cannot be negative';
+    end if;
+    return new;
+  end if;
+
+  select c.fee
+    into courier_default_fee
+  from public.couriers c
+  where c.user_id = new.user_id
+    and c.id = new.courier_id;
+
+  if not found then
+    if new.fee < 0 then
+      raise exception 'delivery fee cannot be negative';
+    end if;
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and new.courier_id is distinct from old.courier_id then
+    if new.fee is null or new.fee <= 0 or new.fee = old.fee then
+      new.fee := courier_default_fee;
+    end if;
+  elsif courier_default_fee > 0 and new.fee <= 0 then
+    new.fee := courier_default_fee;
+  end if;
+
+  if new.fee < 0 then
+    raise exception 'delivery fee cannot be negative';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists deliveries_guard_fee on public.deliveries;
+create trigger deliveries_guard_fee
+before insert or update of courier_id, fee on public.deliveries
+for each row execute function public.xb_guard_delivery_fee();
+
 -- Reserva números de pedido de forma atômica entre todos os aparelhos do mesmo usuário.
 -- Também se recupera automaticamente caso o contador fique atrás do maior código já salvo.
 create or replace function public.xb_next_delivery_code()
