@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-reportday1';
+  const version = '20260911-business2';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -73,7 +73,9 @@
       'auth-onboarding.js',
       'currency-inputs.js',
       // Calcula automaticamente quanto de troco precisa ir com o entregador.
-      'change-calculator.js'
+      'change-calculator.js',
+      // Regras finais: pago online não exige conferência e cancelamento mantém taxa.
+      'business-rules-v2.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
