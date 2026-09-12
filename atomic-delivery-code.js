@@ -76,6 +76,7 @@
     try {
       const code = await reserveDeliveryCode();
       const now = new Date().toISOString();
+      const payment = document.querySelector('input[name="payment"]:checked')?.value || 'Dinheiro';
       const item = {
         id: uid('delivery'),
         code,
@@ -86,7 +87,7 @@
         courierId: document.getElementById('deliveryCourier').value || null,
         fee: Number(document.getElementById('deliveryFee').value || 0),
         orderValue: Number(document.getElementById('deliveryValue').value || 0),
-        payment: document.querySelector('input[name="payment"]:checked')?.value || 'Dinheiro',
+        payment,
         changeFor: document.getElementById('deliveryChange').value
           ? Number(document.getElementById('deliveryChange').value)
           : '',
@@ -94,7 +95,8 @@
         status: 'Aguardando',
         createdAt: now,
         updatedAt: now,
-        paymentConfirmedAt: ''
+        // "Pago online" já nasce quitado; o pedido continua aguardando somente a entrega.
+        paymentConfirmedAt: payment === 'Pago online' ? now : ''
       };
 
       db.deliveries.push(item);
