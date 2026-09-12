@@ -39,6 +39,18 @@
     if (title && item) title.textContent = `Editar entrega #${String(item.code || '').padStart(3, '0')}`;
   }
 
+  function syncFeeFromEditedCourier() {
+    const courierSelect = document.getElementById('editDeliveryCourier');
+    const feeInput = document.getElementById('editDeliveryFee');
+    if (!courierSelect || !feeInput) return;
+
+    const person = db.couriers.find(item => item.id === courierSelect.value);
+    if (!person) return;
+
+    feeInput.value = Number(person.fee || 0).toFixed(2);
+    feeInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   ensureStatusField();
 
   const previousOpenDeliveryEditor = openDeliveryEditor;
@@ -48,6 +60,11 @@
     setEditStatus(item);
     enhanceEditorHeader(item);
   };
+
+  // Ao trocar o entregador de uma entrega já cadastrada, a taxa acompanha
+  // automaticamente a taxa cadastrada para aquele entregador. Antes disso, a
+  // troca podia manter a taxa do entregador anterior e causar divergência.
+  document.getElementById('editDeliveryCourier')?.addEventListener('change', syncFeeFromEditedCourier);
 
   document.getElementById('deliveryEditForm')?.addEventListener('submit', () => {
     const id = document.getElementById('editDeliveryId')?.value;
