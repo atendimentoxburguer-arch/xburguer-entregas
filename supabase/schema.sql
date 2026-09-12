@@ -132,6 +132,11 @@ begin
     and c.id = new.courier_id;
 
   if not found then
+    -- Entregas antigas podem manter a referência histórica de um entregador já
+    -- removido. Porém uma nova entrega, ou troca para um ID inexistente, é bloqueada.
+    if tg_op = 'INSERT' or (tg_op = 'UPDATE' and new.courier_id is distinct from old.courier_id) then
+      raise exception 'courier does not exist for this user';
+    end if;
     if new.fee < 0 then
       raise exception 'delivery fee cannot be negative';
     end if;
@@ -158,6 +163,37 @@ drop trigger if exists deliveries_guard_fee on public.deliveries;
 create trigger deliveries_guard_fee
 before insert or update of courier_id, fee on public.deliveries
 for each row execute function public.xb_guard_delivery_fee();
+
+-- Mantém o estado do pagamento coerente mesmo se um aparelho antigo enviar dados.
+-- Pago online nasce confirmado, pedido entregue sempre tem confirmação e troco só
+-- pode existir em pagamento em dinheiro.
+create or replace function public.xb_guard_delivery_state()
+returns trigger
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if new.payment <> 'Dinheiro' then
+    new.change_for := null;
+  end if;
+
+  if new.payment = 'Pago online' and new.payment_confirmed_at is null then
+    new.payment_confirmed_at := coalesce(new.created_at, now());
+  elsif new.status = 'Entregue' and new.payment_confirmed_at is null then
+    new.payment_confirmed_at := now();
+  elsif new.status = 'Aguardando' and new.payment <> 'Pago online' then
+    new.payment_confirmed_at := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists deliveries_guard_state on public.deliveries;
+create trigger deliveries_guard_state
+before insert or update of status, payment, payment_confirmed_at, change_for on public.deliveries
+for each row execute function public.xb_guard_delivery_state();
 
 -- Reserva números de pedido de forma atômica entre todos os aparelhos do mesmo usuário.
 -- Também se recupera automaticamente caso o contador fique atrás do maior código já salvo.
