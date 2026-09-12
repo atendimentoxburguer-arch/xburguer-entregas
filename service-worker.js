@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v16`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v17`;
 
 const APP_SHELL = [
   './',
@@ -95,9 +95,6 @@ async function cacheFirst(request) {
 
 async function staleWhileRevalidate(request, event) {
   const cache = await caches.open(CACHE_NAME);
-
-  // Para arquivos com ?v=, só reutilizamos exatamente a mesma versão.
-  // Isso impede que uma versão antiga do sistema seja servida quando o loader muda.
   const cached = await cache.match(request);
 
   const refresh = fetch(request).then(response => {
@@ -112,8 +109,6 @@ async function staleWhileRevalidate(request, event) {
 
   const response = await refresh;
   if (response) return response;
-
-  // Em modo offline, uma cópia sem query ainda pode manter o sistema utilizável.
   return (await cache.match(request, { ignoreSearch: true })) || Response.error();
 }
 
@@ -123,20 +118,16 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   const isSameOrigin = url.origin === self.location.origin;
-
-  // Supabase, autenticação, APIs e CDNs externas nunca passam pelo cache local.
   if (!isSameOrigin) return;
 
   const isCode = /\.(?:html?|js|css|webmanifest)$/i.test(url.pathname);
   const isLoader = /\/app\.js$/i.test(url.pathname);
 
-  // Navegação e loader principal consultam a rede primeiro para aplicar correções imediatamente.
   if (request.mode === 'navigate' || isLoader) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Demais arquivos de código usam a versão exata do cache; versões novas vão à rede.
   if (isCode) {
     event.respondWith(staleWhileRevalidate(request, event));
     return;
