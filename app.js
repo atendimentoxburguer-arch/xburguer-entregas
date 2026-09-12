@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260911-business5';
+  const version = '20260912-integrity1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -45,7 +45,9 @@
   async function startSystem() {
     const coreReady = await loadOrderedGroup([
       'supabase-config.js',
-      'app-core.js'
+      'app-core.js',
+      // Remove imediatamente credenciais e dados de demonstração legados.
+      'core-safety.js'
     ], 'núcleo');
 
     if (!coreReady) {
@@ -64,6 +66,8 @@
       'system-update.js',
       'closing-summary.js',
       'system-audit.js',
+      // Validação central antes das regras operacionais e da sincronização.
+      'system-integrity-v3.js',
       'simple-payment-flow.js',
       'delivery-edit-plus.js',
       'payment-confirmation-pro.js',
