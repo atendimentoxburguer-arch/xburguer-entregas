@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912-date1';
+  const version = '20260912-metrics1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -55,8 +55,6 @@
       return;
     }
 
-    // Recursos indispensáveis entram primeiro. O modo de desempenho é ativado
-    // cedo para que os módulos seguintes já inicializem com menos renderizações.
     const essential = [
       'cloud-auth-guard.js',
       'database-prep.js',
@@ -66,35 +64,30 @@
       'system-update.js',
       'closing-summary.js',
       'system-audit.js',
-      // Validação central antes das regras operacionais e da sincronização.
       'system-integrity-v3.js',
       'simple-payment-flow.js',
       'delivery-edit-plus.js',
       'payment-confirmation-pro.js',
       'production-hardening.js',
       'database-cloud-v2.js',
-      // Protege e corrige a taxa antes de qualquer cadastro/edição ser persistido.
       'courier-fee-consistency.js',
       'atomic-delivery-code.js',
       'auth-onboarding.js',
       'currency-inputs.js',
-      // Calcula automaticamente quanto de troco precisa ir com o entregador.
       'change-calculator.js',
-      // Regras finais: pago online não exige conferência e cancelamento mantém taxa.
       'business-rules-v2.js',
-      // Mantém os indicadores de Entregas no mesmo período selecionado na tabela.
-      'delivery-date-scope.js'
+      'delivery-date-scope.js',
+      // Fonte única para dias, períodos, somas em centavos, contagens e auditoria.
+      'metrics-consistency-v4.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
 
     // Painéis gerenciais e históricos são úteis, mas não precisam atrasar login,
-    // banco, cadastro de entrega ou conferência de pagamento. São carregados um
-    // a um quando o navegador estiver ocioso após a sessão estar pronta.
+    // banco, cadastro de entrega ou conferência de pagamento.
     const deferred = [
       'ticket-average.js',
       'operations-pro.js',
-      // Permite analisar um dia específico sem perder os filtros por período.
       'report-date-filter.js',
       'closing-history.js'
     ];
@@ -119,8 +112,6 @@
 
     window.addEventListener('xb:cloud-ready', loadDeferredEnhancements, { once: true });
 
-    // Cobre restauração de sessão extremamente rápida, caso o evento tenha sido
-    // emitido antes do listener acima ser instalado.
     setTimeout(() => {
       const appVisible = !document.getElementById('appView')?.classList.contains('hidden');
       if (appVisible || window.XBCloud?.state?.connected) loadDeferredEnhancements();
