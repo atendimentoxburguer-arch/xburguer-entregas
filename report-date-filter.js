@@ -9,7 +9,17 @@
   let selectedDate = '';
 
   const numberValue = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-  const sum = (items, field) => (items || []).reduce((total, item) => total + numberValue(item[field]), 0);
+  const businessDay = value => window.XBMetrics?.dayKey?.(value) || dateKey(value instanceof Date ? value : new Date(value));
+  const previousDayKey = key => window.XBMetrics?.addDaysKey?.(key, -1) || (() => {
+    const [year, month, day] = String(key || '').split('-').map(Number);
+    if (!year || !month || !day) return '';
+    const value = new Date(year, month - 1, day);
+    value.setDate(value.getDate() - 1);
+    return businessDay(value);
+  })();
+  const sumMoney = (items, field) => window.XBMetrics?.sumMoney
+    ? window.XBMetrics.sumMoney(items, field)
+    : Math.round((items || []).reduce((total, item) => total + Math.round(numberValue(item?.[field]) * 100), 0)) / 100;
 
   function formatDay(key) {
     const [year, month, day] = String(key || '').split('-').map(Number);
@@ -19,19 +29,9 @@
     });
   }
 
-  function previousDayKey(key) {
-    const [year, month, day] = String(key || '').split('-').map(Number);
-    if (!year || !month || !day) return '';
-    const value = new Date(year, month - 1, day);
-    value.setDate(value.getDate() - 1);
-    return dateKey(value);
-  }
-
   function deliveredForDate(key) {
     if (!key) return [];
-    return (db.deliveries || []).filter(item =>
-      item.status === 'Entregue' && dateKey(new Date(item.createdAt)) === key
-    );
+    return (db.deliveries || []).filter(item => item.status === 'Entregue' && businessDay(item.createdAt) === key);
   }
 
   function deltaLabel(current, previous) {
@@ -49,12 +49,13 @@
     const map = new Map();
     (items || []).forEach(item => {
       const key = item.payment || 'Não informado';
-      const row = map.get(key) || { name: key, count: 0, value: 0 };
+      const row = map.get(key) || { name: key, count: 0, cents: 0 };
       row.count += 1;
-      row.value += numberValue(item.orderValue);
+      row.cents += Math.round(numberValue(item.orderValue) * 100);
       map.set(key, row);
     });
-    return [...map.values()].sort((a, b) => b.value - a.value)[0] || null;
+    const best = [...map.values()].sort((a, b) => b.cents - a.cents || b.count - a.count)[0];
+    return best ? { name: best.name, count: best.count, value: best.cents / 100 } : null;
   }
 
   function ensureControls() {
@@ -93,7 +94,7 @@
 
       const input = document.getElementById('reportSpecificDate');
       if (input) {
-        input.max = dateKey();
+        input.max = businessDay();
         input.addEventListener('change', () => {
           selectedDate = input.value || '';
           renderReports();
@@ -106,8 +107,6 @@
         renderReports();
       });
 
-      // Se o usuário escolher novamente um período, o dia específico é desativado
-      // antes do listener original do relatório executar.
       range.addEventListener('change', () => {
         if (!selectedDate) return;
         selectedDate = '';
@@ -127,7 +126,7 @@
     const info = document.getElementById('reportSelectedDateInfo');
 
     if (input) {
-      input.max = dateKey();
+      input.max = businessDay();
       if (input.value !== selectedDate) input.value = selectedDate;
     }
     range?.classList.toggle('report-range-inactive', Boolean(selectedDate));
@@ -149,10 +148,10 @@
     const current = deliveredForDate(selectedDate);
     const previousKey = previousDayKey(selectedDate);
     const previous = deliveredForDate(previousKey);
-    const revenue = sum(current, 'orderValue');
-    const previousRevenue = sum(previous, 'orderValue');
-    const ticket = current.length ? revenue / current.length : 0;
-    const previousTicket = previous.length ? previousRevenue / previous.length : 0;
+    const revenue = sumMoney(current, 'orderValue');
+    const previousRevenue = sumMoney(previous, 'orderValue');
+    const ticket = current.length ? Math.round((revenue * 100) / current.length) / 100 : 0;
+    const previousTicket = previous.length ? Math.round((previousRevenue * 100) / previous.length) / 100 : 0;
     const payment = topPayment(current);
 
     panel.innerHTML = `
@@ -190,17 +189,8 @@
       .report-selected-date-info{display:flex;align-items:center;gap:9px;margin:-3px 0 18px;padding:10px 13px;border:1px solid #ead7b0;border-radius:12px;background:linear-gradient(135deg,#fff9ea,#fff2cf);color:#795811;font-size:.82rem;line-height:1.45}
       .report-selected-date-info.hidden{display:none!important}
       .report-selected-date-info svg{width:17px;height:17px;flex:0 0 auto}
-      @media(max-width:760px){
-        #page-reports .page-head{align-items:flex-start!important;flex-direction:column}
-        .report-period-controls{width:100%;justify-content:flex-start}
-        .report-period-controls .head-select{flex:1;min-width:150px}
-        .report-date-control{flex:1;justify-content:space-between;min-width:220px}
-      }
-      @media(max-width:520px){
-        .report-period-controls{display:grid;grid-template-columns:1fr;width:100%}
-        .report-period-controls .head-select,.report-date-control,.report-date-clear{width:100%!important}
-        .report-date-control input{flex:1;min-width:0}
-      }
+      @media(max-width:760px){#page-reports .page-head{align-items:flex-start!important;flex-direction:column}.report-period-controls{width:100%;justify-content:flex-start}.report-period-controls .head-select{flex:1;min-width:150px}.report-date-control{flex:1;justify-content:space-between;min-width:220px}}
+      @media(max-width:520px){.report-period-controls{display:grid;grid-template-columns:1fr;width:100%}.report-period-controls .head-select,.report-date-control,.report-date-clear{width:100%!important}.report-date-control input{flex:1;min-width:0}}
       html.xb-low-power .report-date-control,html.xb-low-power .report-selected-date-info{box-shadow:none!important}
     `;
     document.head.appendChild(style);
