@@ -107,6 +107,31 @@
     });
   }
 
+  function selectedFeeItems() {
+    if (typeof window.XBMetrics?.selectedReportFees === 'function') return window.XBMetrics.selectedReportFees();
+    return (db.deliveries || []).filter(item => finalStatuses.has(item.status));
+  }
+
+  function patchReportCancelledNote() {
+    const stats = document.getElementById('reportStats');
+    if (!stats) return;
+    const feeItems = selectedFeeItems();
+    const cancelled = feeItems.filter(item => item.status === 'Cancelada');
+    const cancelledFees = cancelled.reduce((sum, item) => sum + Math.round(numberValue(item.fee) * 100), 0) / 100;
+    let note = document.getElementById('xbReportCancelledFeeNote');
+    if (!cancelled.length) {
+      note?.remove();
+      return;
+    }
+    if (!note) {
+      note = document.createElement('div');
+      note.id = 'xbReportCancelledFeeNote';
+      note.className = 'xb-report-cancelled-fee-note';
+      stats.insertAdjacentElement('afterend', note);
+    }
+    note.innerHTML = `${icon('info')}<span>As taxas incluem pedidos cancelados neste mesmo período: <b>${cancelled.length}</b> cancelado${cancelled.length === 1 ? '' : 's'} · <b>${money(cancelledFees)}</b> em taxas mantidas.</span>`;
+  }
+
   function patchClosingButton() {
     const button = document.getElementById('closeDayBtn');
     if (!button || button.classList.contains('hidden')) return;
@@ -119,13 +144,33 @@
   function refreshVisible() {
     patchInvalidDeliveryRows();
     patchCourierCards();
+    patchReportCancelledNote();
     patchClosingButton();
     refreshAuditIndicator();
     if (typeof refreshIcons === 'function') refreshIcons();
   }
 
+  function wrapRender(name, patch) {
+    const current = window[name];
+    if (typeof current !== 'function' || current.__xbFinalIntegrityWrapped) return;
+    const wrapped = function xbFinalIntegrityRender(...args) {
+      const result = current.apply(this, args);
+      patch();
+      return result;
+    };
+    wrapped.__xbFinalIntegrityWrapped = true;
+    window[name] = wrapped;
+  }
+
+  function installRenderGuards() {
+    wrapRender('renderDeliveries', patchInvalidDeliveryRows);
+    wrapRender('renderCouriers', patchCourierCards);
+    wrapRender('renderReports', patchReportCancelledNote);
+    wrapRender('renderClosing', patchClosingButton);
+  }
+
   // Usa window/capture para alcançar o clique antes dos fluxos de conclusão da tabela.
-  // A conferência comum também valida dentro de payment-confirmation-pro.js.
+  // A conferência comum também valida novamente dentro de payment-confirmation-pro.js.
   window.addEventListener('click', event => {
     const button = event.target.closest?.('[data-delivery-action="advance"], [data-delivery-action="confirm-payment"], [data-delivery-action="complete-online"]');
     if (!button) return;
@@ -150,8 +195,13 @@
     document.head.appendChild(style);
   }
 
-  ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved', 'xb:enhancements-ready'].forEach(name => {
+  installRenderGuards();
+  ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved'].forEach(name => {
     window.addEventListener(name, () => setTimeout(refreshVisible, 0));
+  });
+  window.addEventListener('xb:enhancements-ready', () => {
+    installRenderGuards();
+    setTimeout(refreshVisible, 0);
   });
   document.addEventListener('change', event => {
     if (event.target?.closest?.('form,select,input,textarea')) setTimeout(refreshVisible, 0);
