@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260913-closing1';
+  const version = '20260913-closing2';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -79,7 +79,7 @@
       'delivery-date-scope.js',
       // Fonte única para dias, períodos, somas em centavos, contagens e auditoria.
       'metrics-consistency-v4.js',
-      // Garante que um dia concluído continue disponível no histórico após a virada da data.
+      // Finaliza o dia no banco, confirma a gravação e repara fechamentos incompletos.
       'closing-continuity.js'
     ];
 
