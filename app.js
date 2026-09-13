@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260913-audit1';
+  const version = '20260913-audit2';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
