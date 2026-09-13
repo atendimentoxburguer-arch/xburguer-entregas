@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260912-metrics1';
+  const version = '20260913-closing1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -78,7 +78,9 @@
       'business-rules-v2.js',
       'delivery-date-scope.js',
       // Fonte única para dias, períodos, somas em centavos, contagens e auditoria.
-      'metrics-consistency-v4.js'
+      'metrics-consistency-v4.js',
+      // Garante que um dia concluído continue disponível no histórico após a virada da data.
+      'closing-continuity.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
