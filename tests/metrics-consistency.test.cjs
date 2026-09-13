@@ -35,7 +35,7 @@ const context = {
   filterRange(items) { return items; },
   todayDeliveries() { return []; },
   reportItems() { return []; },
-  courier(id) { return this.db.couriers.find(item => item.id === id); },
+  courier(id) { return context.db.couriers.find(item => item.id === id); },
   renderDashboard() {},
   renderDeliveries() {},
   renderCouriers() {},
