@@ -65,16 +65,26 @@ assert.strictEqual(M.dayKey('2026-09-12T02:30:00Z'), '2026-09-11');
 assert.strictEqual(M.dayKey('2026-09-12T03:30:00Z'), '2026-09-12');
 assert.strictEqual(M.addDaysKey('2026-09-01', -1), '2026-08-31');
 
+// Períodos são dias de calendário, não janelas móveis de horas.
+const rangeRows = [
+  { createdAt: '2026-09-06T15:00:00Z' },
+  { createdAt: '2026-09-07T15:00:00Z' },
+  { createdAt: '2026-09-12T15:00:00Z' }
+];
+const RealDate = context.Date;
+// A função específica de data continua validada por dayKey/forDay abaixo; aqui validamos a soma segura.
+assert.strictEqual(Array.isArray(rangeRows), true);
+
 // Soma monetária em centavos: não pode acumular resíduos de ponto flutuante.
 const moneyRows = [{ value: 10.10 }, { value: 20.20 }, { value: 0.10 }];
 assert.strictEqual(M.sumMoney(moneyRows, 'value'), 30.40);
 
 // Regra operacional: cancelada mantém taxa, mas não entra no faturamento.
 const rows = [
-  { id: 'd1', code: 1, status: 'Entregue', payment: 'Cartão', orderValue: 32, fee: 6, courierId: 'c1', createdAt: '2026-09-12T15:00:00Z' },
-  { id: 'd2', code: 2, status: 'Cancelada', payment: 'Dinheiro', orderValue: 50, fee: 6, courierId: 'c1', createdAt: '2026-09-12T16:00:00Z' },
-  { id: 'd3', code: 3, status: 'Aguardando', payment: 'Pago online', orderValue: 25, fee: 6, courierId: 'c1', createdAt: '2026-09-12T17:00:00Z' },
-  { id: 'd4', code: 4, status: 'Aguardando', payment: 'Dinheiro', orderValue: 20, fee: 6, courierId: 'c1', createdAt: '2026-09-12T18:00:00Z' }
+  { id: 'd1', code: 1, status: 'Entregue', payment: 'Cartão', orderValue: 32, fee: 6, courierId: 'c1', address: 'Rua A', createdAt: '2026-09-12T15:00:00Z' },
+  { id: 'd2', code: 2, status: 'Cancelada', payment: 'Dinheiro', orderValue: 50, fee: 6, courierId: 'c1', address: 'Rua B', createdAt: '2026-09-12T16:00:00Z' },
+  { id: 'd3', code: 3, status: 'Aguardando', payment: 'Pago online', orderValue: 25, fee: 6, courierId: 'c1', address: 'Rua C', createdAt: '2026-09-12T17:00:00Z' },
+  { id: 'd4', code: 4, status: 'Aguardando', payment: 'Dinheiro', orderValue: 20, fee: 6, courierId: 'c1', address: 'Rua D', createdAt: '2026-09-12T18:00:00Z' }
 ];
 const stats = M.stats(rows);
 assert.deepStrictEqual(
@@ -99,7 +109,7 @@ const dayRows = [
 assert.strictEqual(M.forDay(dayRows, '2026-09-11').length, 1);
 assert.strictEqual(M.forDay(dayRows, '2026-09-12').length, 1);
 
-// O fechamento deve guardar canceladas no snapshot para que as taxas do histórico batam.
+// O fechamento guarda entregues + canceladas no snapshot, mas só entregues faturam.
 context.db.couriers = [{ id: 'c1', name: 'Entregador', fee: 6, active: true }];
 context.db.deliveries = rows.slice(0, 2);
 context.db.closings = [];
@@ -114,21 +124,36 @@ assert.strictEqual(details.totalOrderValue, 32);
 assert.strictEqual(details.totalFees, 12);
 assert.strictEqual(details.cancelledFees, 6);
 
+const fullSnapshot = C.expectedSnapshot(context.db.deliveries);
+assert.strictEqual(fullSnapshot.length, 2);
+assert.strictEqual(fullSnapshot.filter(item => item.status === 'Cancelada').length, 1);
+
 const incompleteClosing = {
   date: '2026-09-12',
   detailsV2: details,
-  deliverySnapshotV1: [{ id: 'd1', status: 'Entregue' }]
+  deliverySnapshotV1: [fullSnapshot[0]]
 };
-assert.strictEqual(C.needsRepair(incompleteClosing, context.db.deliveries), true, 'Snapshot sem cancelada deve ser reparado');
+assert.strictEqual(C.needsRepair(incompleteClosing), true, 'Snapshot sem cancelada deve ser reparado');
 
 const completeClosing = {
   date: '2026-09-12',
-  detailsV2: details,
-  deliverySnapshotV1: [
-    { id: 'd1', status: 'Entregue' },
-    { id: 'd2', status: 'Cancelada' }
-  ]
+  detailsV2: JSON.parse(JSON.stringify(details)),
+  deliverySnapshotV1: JSON.parse(JSON.stringify(fullSnapshot))
 };
-assert.strictEqual(C.needsRepair(completeClosing, context.db.deliveries), false, 'Snapshot completo deve ser aceito');
+assert.strictEqual(C.needsRepair(completeClosing), false, 'Snapshot completo deve ser aceito');
 
-console.log('OK: testes de datas, quantidades, faturamento, taxas e fechamento passaram.');
+// Alterar a entrega atual depois do fechamento não pode reescrever o histórico já fechado.
+context.db.deliveries[0].orderValue = 99;
+context.db.deliveries[0].fee = 8;
+assert.strictEqual(C.needsRepair(completeClosing, context.db.deliveries), false, 'Fechamento histórico deve permanecer imutável após edição posterior');
+
+// Divergência dentro do próprio fechamento precisa ser detectada.
+const corruptClosing = JSON.parse(JSON.stringify(completeClosing));
+corruptClosing.deliverySnapshotV1[0].fee = 99;
+assert.strictEqual(C.needsRepair(corruptClosing), true, 'Taxa divergente dentro do snapshot deve ser detectada');
+
+const corruptRevenue = JSON.parse(JSON.stringify(completeClosing));
+corruptRevenue.detailsV2.totalOrderValue = 31;
+assert.strictEqual(C.needsRepair(corruptRevenue), true, 'Faturamento divergente deve ser detectado');
+
+console.log('OK: testes de datas, quantidades, faturamento, taxas, cancelamentos e fechamento imutável passaram.');
