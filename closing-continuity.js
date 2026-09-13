@@ -47,10 +47,11 @@
   }
 
   function buildDetails(rows) {
-    const delivered = rows.filter(isDelivered);
-    const cancelled = rows.filter(isCancelled);
-    const feeRows = rows.filter(isFinal);
-    const pending = rows.filter(isPending);
+    const list = Array.isArray(rows) ? rows : [];
+    const delivered = list.filter(isDelivered);
+    const cancelled = list.filter(isCancelled);
+    const feeRows = list.filter(isFinal);
+    const pending = list.filter(isPending);
 
     const payments = PAYMENTS.map(name => {
       const items = delivered.filter(item => item.payment === name);
@@ -91,37 +92,46 @@
   }
 
   function expectedSnapshot(rows) {
-    return rows.filter(isFinal)
+    return (rows || []).filter(isFinal)
       .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0) || Number(a.code || 0) - Number(b.code || 0))
       .map(snapshotDelivery);
   }
 
-  function normalizedClosingSignature(details) {
-    if (!details) return '';
-    const payments = (details.payments || []).map(row => [row.name, Number(row.count || 0), cents(row.value)]).sort();
-    const couriers = (details.couriers || []).map(row => [String(row.id || ''), Number(row.count || 0), Number(row.cancelled || 0), cents(row.fees), cents(row.cancelledFees)]).sort();
-    return JSON.stringify({
-      delivered: Number(details.totalDeliveries || 0),
-      revenue: cents(details.totalOrderValue),
-      fees: cents(details.totalFees),
-      cancelled: Number(details.cancelledDeliveries || 0),
-      cancelledFees: cents(details.cancelledFees),
-      pending: Number(details.pending || 0),
-      payments,
-      couriers
-    });
-  }
+  // Valida o fechamento contra o próprio snapshot congelado. Nunca compara um
+  // fechamento histórico com a entrega atual, pois uma edição posterior não pode
+  // reescrever os totais já fechados.
+  function needsRepair(closing) {
+    const details = closing?.detailsV2;
+    const snapshot = closing?.deliverySnapshotV1;
+    if (!details || typeof details !== 'object') return true;
+    if (!Array.isArray(details.payments) || !Array.isArray(details.couriers) || !Array.isArray(snapshot)) return true;
 
-  function needsRepair(closing, rows) {
-    if (!closing) return true;
-    const expectedDetails = buildDetails(rows);
-    if (normalizedClosingSignature(closing.detailsV2) !== normalizedClosingSignature(expectedDetails)) return true;
-    const snapshot = Array.isArray(closing.deliverySnapshotV1) ? closing.deliverySnapshotV1 : [];
-    const expected = expectedSnapshot(rows);
-    if (snapshot.length !== expected.length) return true;
-    const haveIds = snapshot.map(item => `${item.id}:${item.status}`).sort().join('|');
-    const expectedIds = expected.map(item => `${item.id}:${item.status}`).sort().join('|');
-    return haveIds !== expectedIds;
+    const delivered = Math.max(0, Math.floor(numberValue(details.totalDeliveries)));
+    const cancelled = Math.max(0, Math.floor(numberValue(details.cancelledDeliveries)));
+    const pending = Math.max(0, Math.floor(numberValue(details.pending)));
+    const revenue = cents(details.totalOrderValue);
+    const fees = cents(details.totalFees);
+    const cancelledFees = cents(details.cancelledFees);
+    if (pending !== 0) return true;
+
+    const paymentCount = details.payments.reduce((total, row) => total + Math.max(0, Math.floor(numberValue(row?.count))), 0);
+    const paymentValue = details.payments.reduce((total, row) => total + cents(row?.value), 0);
+    if (paymentCount !== delivered || paymentValue !== revenue) return true;
+
+    const courierDelivered = details.couriers.reduce((total, row) => total + Math.max(0, Math.floor(numberValue(row?.count))), 0);
+    const courierCancelled = details.couriers.reduce((total, row) => total + Math.max(0, Math.floor(numberValue(row?.cancelled))), 0);
+    const courierFees = details.couriers.reduce((total, row) => total + cents(row?.fees), 0);
+    const courierCancelledFees = details.couriers.reduce((total, row) => total + cents(row?.cancelledFees), 0);
+    if (courierDelivered !== delivered || courierCancelled !== cancelled || courierFees !== fees || courierCancelledFees !== cancelledFees) return true;
+
+    const snapshotDelivered = snapshot.filter(isDelivered);
+    const snapshotCancelled = snapshot.filter(isCancelled);
+    if (snapshot.length !== delivered + cancelled || snapshotDelivered.length !== delivered || snapshotCancelled.length !== cancelled) return true;
+    if (snapshotDelivered.reduce((total, item) => total + cents(item?.orderValue), 0) !== revenue) return true;
+    if (snapshot.filter(isFinal).reduce((total, item) => total + cents(item?.fee), 0) !== fees) return true;
+    if (snapshotCancelled.reduce((total, item) => total + cents(item?.fee), 0) !== cancelledFees) return true;
+
+    return false;
   }
 
   function cloudAvailable() {
@@ -130,24 +140,29 @@
 
   async function flushBeforeClosing() {
     if (!cloudAvailable()) throw new Error('É necessária conexão com a internet para finalizar o dia com segurança.');
-    if (window.XBCloud?.syncNow) await window.XBCloud.syncNow();
+    if (window.XBCloud?.syncNow) {
+      const synced = await window.XBCloud.syncNow();
+      if (synced === false && Number(window.XBCloud?.pendingChanges || 0) > 0) {
+        throw new Error('Não foi possível enviar todas as alterações ao banco. Aguarde e tente novamente.');
+      }
+    }
     if (Number(window.XBCloud?.pendingChanges || 0) > 0) {
       throw new Error('Ainda existem alterações aguardando sincronização. Aguarde alguns segundos e tente novamente.');
     }
   }
 
-  async function finalizeRemote(key, allowPending = false) {
+  async function finalizeRemote(key) {
     await flushBeforeClosing();
     const { data, error } = await window.XBCloud.client.rpc('xb_finalize_day', {
       p_date: key,
-      p_allow_pending: Boolean(allowPending)
+      p_allow_pending: false
     });
     if (error) throw error;
 
     if (window.XBCloud?.pullNow) await window.XBCloud.pullNow();
     const closing = (db.closings || []).find(item => item?.date === key);
-    if (!closing?.detailsV2 || !Array.isArray(closing.deliverySnapshotV1)) {
-      throw new Error('O fechamento foi enviado, mas ainda não foi confirmado no aparelho. Sincronize novamente antes de sair.');
+    if (!closing || needsRepair(closing)) {
+      throw new Error('O fechamento não passou na conferência final. Sincronize novamente e confira antes de sair.');
     }
     return data;
   }
@@ -178,14 +193,16 @@
     const rows = rowsForDay(key);
     const pending = rows.filter(isPending).length;
     if (!rows.length) return toast('Não há entregas registradas para finalizar hoje.', 'error');
-    if (pending && !window.confirm(`Existem ${pending} entrega${pending === 1 ? '' : 's'} pendente${pending === 1 ? '' : 's'}. Finalizar mesmo assim?`)) return;
+    if (pending) {
+      return toast(`Existem ${pending} entrega${pending === 1 ? '' : 's'} pendente${pending === 1 ? '' : 's'}. Conclua ou cancele antes de fechar o dia.`, 'error');
+    }
 
     busy = true;
     const button = event.currentTarget;
     if (button) button.disabled = true;
     try {
-      await finalizeRemote(key, pending > 0);
-      toast('Fechamento finalizado e confirmado no banco de dados.');
+      await finalizeRemote(key);
+      toast('Fechamento finalizado, conferido e confirmado no banco de dados.');
       renderAfterChange();
     } catch (error) {
       console.error('[X-Burguer] Falha ao finalizar dia:', error);
@@ -238,7 +255,9 @@
       for (const [key, rows] of groups.entries()) {
         if (!rows.length || rows.some(isPending) || !rows.some(isFinal)) continue;
         const existing = db.closings.find(item => item?.date === key);
-        if (!needsRepair(existing, rows)) continue;
+        // Um fechamento internamente íntegro é histórico imutável. Só recompomos
+        // quando ele não existe ou o próprio registro salvo está incompleto.
+        if (existing && !needsRepair(existing)) continue;
         const { error } = await window.XBCloud.client.rpc('xb_finalize_day', {
           p_date: key,
           p_allow_pending: false
@@ -284,6 +303,7 @@
   window.XBClosingContinuity = Object.freeze({
     recover: recoverPastCompleteDays,
     buildDetails,
+    expectedSnapshot,
     needsRepair,
     finalizeDay: finalizeRemote,
     reopenDay: reopenRemote
