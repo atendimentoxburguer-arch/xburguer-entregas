@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v25`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v26`;
 
 const APP_SHELL = [
   './',
@@ -28,6 +28,7 @@ const APP_SHELL = [
   './system-integrity-v3.js',
   './metrics-consistency-v4.js',
   './closing-continuity.js',
+  './final-integrity-guards.js',
   './simple-payment-flow.js',
   './delivery-edit-plus.js',
   './payment-confirmation-pro.js',
@@ -103,7 +104,7 @@ async function staleWhileRevalidate(request, event) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
 
-  const refresh = fetch(request).then(response => {
+  const refresh = fetch(request, { cache: 'no-store' }).then(response => {
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
