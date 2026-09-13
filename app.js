@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260913-closing2';
+  const version = '20260913-audit1';
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -79,8 +79,10 @@
       'delivery-date-scope.js',
       // Fonte única para dias, períodos, somas em centavos, contagens e auditoria.
       'metrics-consistency-v4.js',
-      // Finaliza o dia no banco, confirma a gravação e repara fechamentos incompletos.
-      'closing-continuity.js'
+      // Finaliza o dia no banco, confirma a gravação e preserva o histórico fechado.
+      'closing-continuity.js',
+      // Última barreira: impede concluir pedidos inválidos e confere a UI final.
+      'final-integrity-guards.js'
     ];
 
     await loadOrderedGroup(essential, 'recurso');
