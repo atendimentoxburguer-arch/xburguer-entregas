@@ -3,9 +3,8 @@
   window.__xbClosingHistoryInstalled = true;
 
   const SNAPSHOT_KEY = 'deliverySnapshotV1';
-
   const numberValue = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-  const clone = value => JSON.parse(JSON.stringify(value));
+  const dayKey = value => window.XBMetrics?.dayKey?.(value) || dateKey(value instanceof Date ? value : new Date(value));
 
   function formatDayKey(key) {
     const [year, month, day] = String(key || '').split('-').map(Number);
@@ -44,14 +43,14 @@
     };
   }
 
-  function deliveredForDate(key) {
+  function finalForDate(key) {
     return db.deliveries
-      .filter(item => item.status === 'Entregue' && dateKey(new Date(item.createdAt)) === key)
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      .filter(item => ['Entregue', 'Cancelada'].includes(item.status) && dayKey(item.createdAt) === key)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt) || Number(a.code || 0) - Number(b.code || 0));
   }
 
   function buildSnapshotForDate(key) {
-    return deliveredForDate(key).map(snapshotDelivery);
+    return finalForDate(key).map(snapshotDelivery);
   }
 
   function backfillExistingClosings() {
@@ -63,14 +62,6 @@
       }
     });
     if (changed) save();
-  }
-
-  function captureTodayClosingSnapshot() {
-    const closing = db.closings.find(item => item.date === dateKey());
-    if (!closing) return;
-    closing[SNAPSHOT_KEY] = buildSnapshotForDate(closing.date);
-    save();
-    renderClosingHistory();
   }
 
   function importantData(item) {
@@ -96,18 +87,14 @@
 
     const resolved = rows.map(saved => {
       const current = db.deliveries.find(item => item.id === saved.id);
-      if (!current) return { ...saved, _recordSource: 'snapshot', _deletedAfterClosing: true };
-
-      const savedComparable = importantData(saved);
-      const currentComparable = importantData(current);
-      if (savedComparable !== currentComparable) changedAfterClosing += 1;
-
+      if (!current) return { ...saved, _recordSource: 'snapshot', _deletedAfterClosing: true, _exists: false };
+      if (importantData(saved) !== importantData(current)) changedAfterClosing += 1;
       return {
         ...saved,
-        ...clone(current),
-        courierName: courier(current.courierId)?.name || saved.courierName || 'Sem entregador definido',
-        _recordSource: savedComparable === currentComparable ? 'snapshot' : 'current',
-        _deletedAfterClosing: false
+        courierName: saved.courierName || courier(saved.courierId)?.name || 'Sem entregador definido',
+        _recordSource: 'snapshot',
+        _deletedAfterClosing: false,
+        _exists: true
       };
     });
 
@@ -118,15 +105,23 @@
     const details = closing?.detailsV2;
     if (details) {
       return {
-        count: numberValue(details.totalDeliveries),
+        delivered: numberValue(details.totalDeliveries),
+        cancelled: numberValue(details.cancelledDeliveries),
+        records: numberValue(details.totalDeliveries) + numberValue(details.cancelledDeliveries),
         orders: numberValue(details.totalOrderValue),
-        fees: numberValue(details.totalFees)
+        fees: numberValue(details.totalFees),
+        cancelledFees: numberValue(details.cancelledFees)
       };
     }
+    const deliveredRows = rows.filter(item => item.status === 'Entregue');
+    const cancelledRows = rows.filter(item => item.status === 'Cancelada');
     return {
-      count: rows.length,
-      orders: rows.reduce((total, item) => total + numberValue(item.orderValue), 0),
-      fees: rows.reduce((total, item) => total + numberValue(item.fee), 0)
+      delivered: deliveredRows.length,
+      cancelled: cancelledRows.length,
+      records: deliveredRows.length + cancelledRows.length,
+      orders: deliveredRows.reduce((total, item) => total + numberValue(item.orderValue), 0),
+      fees: rows.reduce((total, item) => total + numberValue(item.fee), 0),
+      cancelledFees: cancelledRows.reduce((total, item) => total + numberValue(item.fee), 0)
     };
   }
 
@@ -145,7 +140,7 @@
       <div class="card-head closing-history-head">
         <div class="card-title-row">
           <div class="card-title-icon">${icon('history')}</div>
-          <div><h3>Histórico de dias fechados</h3><p>Consulte as entregas de qualquer dia já finalizado.</p></div>
+          <div><h3>Histórico de dias fechados</h3><p>Consulte entregas concluídas, canceladas, valores e taxas de qualquer dia finalizado.</p></div>
         </div>
         <label class="closing-history-picker"><span>Dia</span><select id="closingHistoryDate" aria-label="Escolher fechamento"></select></label>
       </div>
@@ -167,7 +162,7 @@
   }
 
   function renderEmptyHistory(body) {
-    body.innerHTML = empty('Nenhum dia fechado ainda', 'Quando você finalizar um dia, as entregas dele ficarão disponíveis aqui para consulta.', 'calendar-clock');
+    body.innerHTML = empty('Nenhum dia fechado ainda', 'Quando você finalizar um dia, os pedidos concluídos e cancelados ficarão disponíveis aqui.', 'calendar-clock');
   }
 
   function renderClosingHistory() {
@@ -198,38 +193,42 @@
     const deletedCount = rows.filter(item => item._deletedAfterClosing).length;
 
     const notices = [];
+    if (closing.recovered) {
+      notices.push(`<div class="closing-history-notice">${icon('shield-check')}<span>Este fechamento foi recuperado e conferido a partir das entregas salvas no banco de dados.</span></div>`);
+    }
     if (changedAfterClosing) {
-      notices.push(`<div class="closing-history-notice warn">${icon('pencil-line')}<span><b>${changedAfterClosing}</b> entrega${changedAfterClosing === 1 ? ' foi alterada' : 's foram alteradas'} depois do fechamento. A lista mostra os dados atuais; os totais acima permanecem os valores registrados no fechamento.</span></div>`);
+      notices.push(`<div class="closing-history-notice warn">${icon('pencil-line')}<span><b>${changedAfterClosing}</b> entrega${changedAfterClosing === 1 ? ' foi alterada' : 's foram alteradas'} depois do fechamento. O histórico abaixo preserva os dados originais do momento do fechamento.</span></div>`);
     }
     if (deletedCount) {
-      notices.push(`<div class="closing-history-notice">${icon('archive')}<span><b>${deletedCount}</b> registro${deletedCount === 1 ? ' foi excluído' : 's foram excluídos'} depois do fechamento, mas continua${deletedCount === 1 ? '' : 'm'} disponível${deletedCount === 1 ? '' : 's'} neste histórico.</span></div>`);
+      notices.push(`<div class="closing-history-notice">${icon('archive')}<span><b>${deletedCount}</b> registro${deletedCount === 1 ? ' foi excluído' : 's foram excluídos'} depois do fechamento, mas continua${deletedCount === 1 ? '' : 'm'} preservado${deletedCount === 1 ? '' : 's'} neste histórico.</span></div>`);
     }
 
     body.innerHTML = `
       <div class="closing-history-summary">
         <article><span>Data</span><strong>${esc(formatDayKey(closing.date))}</strong><small>Fechado ${closing.closedAt ? `às ${formatTime(closing.closedAt)}` : ''}</small></article>
-        <article><span>Entregas</span><strong>${summary.count}</strong><small>Registradas no fechamento</small></article>
-        <article><span>Valor dos pedidos</span><strong>${money(summary.orders)}</strong><small>Total do dia</small></article>
-        <article><span>Taxas</span><strong>${money(summary.fees)}</strong><small>Total das entregas</small></article>
+        <article><span>Pedidos finalizados</span><strong>${summary.records}</strong><small>${summary.delivered} entregue${summary.delivered === 1 ? '' : 's'}${summary.cancelled ? ` · ${summary.cancelled} cancelado${summary.cancelled === 1 ? '' : 's'}` : ''}</small></article>
+        <article><span>Valor faturado</span><strong>${money(summary.orders)}</strong><small>Somente pedidos entregues</small></article>
+        <article><span>Taxas</span><strong>${money(summary.fees)}</strong><small>${summary.cancelled ? `Inclui ${money(summary.cancelledFees)} de cancelado${summary.cancelled === 1 ? '' : 's'}` : 'Total dos entregadores'}</small></article>
       </div>
       ${notices.join('')}
       <div class="closing-history-table-wrap">
-        ${rows.length ? `<table class="closing-history-table" aria-label="Entregas do fechamento de ${esc(formatDayKey(closing.date))}">
+        ${rows.length ? `<table class="closing-history-table" aria-label="Pedidos do fechamento de ${esc(formatDayKey(closing.date))}">
           <thead><tr><th>Pedido</th><th>Cliente e endereço</th><th>Entregador</th><th>Pagamento</th><th>Valores</th><th>Situação</th><th></th></tr></thead>
           <tbody>${rows.map(item => {
-            const exists = db.deliveries.some(delivery => delivery.id === item.id);
+            const exists = item._exists !== false && db.deliveries.some(delivery => delivery.id === item.id);
             const change = getChangeFor(item);
+            const cancelled = item.status === 'Cancelada';
             return `<tr>
               <td><strong>#${String(item.code || '').padStart(3, '0')}</strong><small>${formatTime(item.createdAt)}</small></td>
               <td><strong>${esc(item.client?.trim() || 'Cliente não informado')}</strong><small>${esc(addressLabel(item))}</small>${item.phone ? `<small>${esc(item.phone)}</small>` : ''}</td>
               <td><strong>${esc(item.courierName || courier(item.courierId)?.name || 'Sem entregador')}</strong></td>
               <td>${paymentHTML(item)}</td>
-              <td><strong>${money(item.orderValue)}</strong><small>Taxa ${money(item.fee)}</small>${change ? `<small>Troco para ${money(change)}</small>` : ''}</td>
-              <td>${statusHTML(item.status || 'Entregue')}${item._deletedAfterClosing ? '<small class="history-record-only">Registro do fechamento</small>' : ''}</td>
+              <td>${cancelled ? `<strong>Não faturado</strong><small>Pedido ${money(item.orderValue)}</small>` : `<strong>${money(item.orderValue)}</strong>`}<small>Taxa ${money(item.fee)}${cancelled ? ' · mantida' : ''}</small>${change && !cancelled ? `<small>Troco para ${money(change)}</small>` : ''}</td>
+              <td>${statusHTML(item.status || 'Entregue')}${item._deletedAfterClosing ? '<small class="history-record-only">Registro preservado do fechamento</small>' : ''}</td>
               <td>${exists ? `<button class="btn btn-light btn-sm closing-history-edit" type="button" data-history-edit="${esc(item.id)}">${icon('pencil')}Editar</button>` : ''}</td>
             </tr>`;
           }).join('')}</tbody>
-        </table>` : empty('Nenhuma entrega registrada', 'Este fechamento não possui entregas concluídas salvas.', 'package-open')}
+        </table>` : empty('Nenhum pedido registrado', 'Este fechamento não possui pedidos concluídos ou cancelados salvos.', 'package-open')}
       </div>`;
 
     refreshIcons();
@@ -277,12 +276,12 @@
     renderClosingHistory();
   };
 
-  document.getElementById('closeDayBtn')?.addEventListener('click', () => {
-    setTimeout(captureTodayClosingSnapshot, 150);
-  });
-
   document.getElementById('deliveryEditForm')?.addEventListener('submit', () => {
     setTimeout(renderClosingHistory, 0);
+  });
+
+  ['xb:cloud-pulled', 'xb:closing-continuity-recovered'].forEach(name => {
+    window.addEventListener(name, () => setTimeout(renderClosingHistory, 0));
   });
 
   ensureClosingHistorySection();
