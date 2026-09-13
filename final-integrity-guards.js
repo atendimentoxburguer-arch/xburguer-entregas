@@ -124,7 +124,9 @@
     if (typeof refreshIcons === 'function') refreshIcons();
   }
 
-  document.addEventListener('click', event => {
+  // Usa window/capture para alcançar o clique antes dos fluxos de conclusão da tabela.
+  // A conferência comum também valida dentro de payment-confirmation-pro.js.
+  window.addEventListener('click', event => {
     const button = event.target.closest?.('[data-delivery-action="advance"], [data-delivery-action="confirm-payment"], [data-delivery-action="complete-online"]');
     if (!button) return;
     const item = (db.deliveries || []).find(delivery => String(delivery.id) === String(button.dataset.id));
@@ -151,8 +153,12 @@
   ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved', 'xb:enhancements-ready'].forEach(name => {
     window.addEventListener(name, () => setTimeout(refreshVisible, 0));
   });
-  document.addEventListener('change', () => setTimeout(refreshVisible, 0));
-  document.addEventListener('click', () => setTimeout(refreshVisible, 0));
+  document.addEventListener('change', event => {
+    if (event.target?.closest?.('form,select,input,textarea')) setTimeout(refreshVisible, 0);
+  });
+  document.addEventListener('click', event => {
+    if (event.target?.closest?.('[data-delivery-action],[data-page],[data-go],#closeDayBtn,#reopenDayBtn')) setTimeout(refreshVisible, 0);
+  });
   requestAnimationFrame(refreshVisible);
 
   window.XBFinalIntegrity = Object.freeze({
