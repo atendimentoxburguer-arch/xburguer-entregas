@@ -31,6 +31,9 @@ jobs:
           for file in ./*.js; do
             node --check "$file"
           done
+          for file in ./tests/*.cjs; do
+            node --check "$file"
+          done
           node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
 
       - name: Test business metrics
@@ -38,6 +41,12 @@ jobs:
         run: |
           set -euo pipefail
           node tests/metrics-consistency.test.cjs
+
+      - name: Test application shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          node tests/app-shell.test.cjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
