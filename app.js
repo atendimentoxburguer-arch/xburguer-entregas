@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260916-device-sync1';
+  const version = '20260916-device-sync2';
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.
@@ -7,6 +7,25 @@
   if (mainStylesheet) {
     const expectedHref = `./styles.css?v=${version}`;
     if (mainStylesheet.getAttribute('href') !== expectedHref) mainStylesheet.setAttribute('href', expectedHref);
+  }
+
+  // Também registra a versão atual do service worker diretamente pelo carregador.
+  // Assim um notebook com um PWA antigo não depende do cache anterior para se atualizar.
+  if ('serviceWorker' in navigator) {
+    const reloadKey = `xb_sw_reload_${version}`;
+    let reloadingForWorker = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForWorker || sessionStorage.getItem(reloadKey) === '1') return;
+      reloadingForWorker = true;
+      sessionStorage.setItem(reloadKey, '1');
+      location.reload();
+    });
+    navigator.serviceWorker.register(`./service-worker.js?v=${version}`, {
+      scope: './',
+      updateViaCache: 'none'
+    }).then(registration => registration.update().catch(() => {})).catch(error => {
+      console.warn('[X-Burguer] Atualização do cache indisponível:', error);
+    });
   }
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
