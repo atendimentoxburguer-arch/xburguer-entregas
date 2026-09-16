@@ -1,56 +1,61 @@
 (() => {
-  const version = '20260913-audit2';
+  const version = '20260916-device-sync1';
+
+  // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
+  // a folha principal pelo carregador para forçar a mesma versão visual em todos.
+  const mainStylesheet = document.querySelector('link[rel="stylesheet"][href*="styles.css"]');
+  if (mainStylesheet) {
+    const expectedHref = `./styles.css?v=${version}`;
+    if (mainStylesheet.getAttribute('href') !== expectedHref) mainStylesheet.setAttribute('href', expectedHref);
+  }
+
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   const loadScript = (src, ordered = true) => new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = src;
     script.async = !ordered;
     script.onload = () => resolve(src);
-    script.onerror = () => reject(new Error(`Falha ao carregar ${src}`));
+    script.onerror = () => {
+      script.remove();
+      reject(new Error(`Falha ao carregar ${src}`));
+    };
     document.body.appendChild(script);
   });
 
-  // Insere todos os scripts imediatamente para que o navegador baixe em paralelo.
-  // async=false mantém a ordem de execução, preservando as dependências existentes.
-  async function loadOrderedGroup(files, label = 'módulo') {
-    const results = await Promise.allSettled(
-      files.map(file => loadScript(`./${file}?v=${version}`, true))
-    );
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.error(`[X-Burguer] Não foi possível carregar ${label} ${files[index]}:`, result.reason);
+  async function loadVersionedFile(file, label = 'módulo') {
+    const src = `./${file}?v=${version}`;
+    try {
+      return await loadScript(src, true);
+    } catch (firstError) {
+      await sleep(350);
+      try {
+        return await loadScript(`${src}&retry=1`, true);
+      } catch (error) {
+        console.error(`[X-Burguer] Não foi possível carregar ${label} ${file}:`, error);
+        throw error;
       }
-    });
-    return results.every(result => result.status === 'fulfilled');
+    }
   }
 
-  // PWA não bloqueia o carregamento do painel.
+  async function loadOrderedGroup(files, label = 'módulo') {
+    for (const file of files) await loadVersionedFile(file, label);
+    return true;
+  }
+
+  // O PWA não bloqueia o painel, mas recebe a mesma versão do restante da aplicação.
   loadScript(`./pwa-app.js?v=${version}`, false).catch(error => {
     console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
   });
 
-  const waitForIdle = () => new Promise(resolve => {
-    const runner = window.XBPerformance?.runWhenIdle;
-    if (typeof runner === 'function') {
-      runner(() => resolve());
-      return;
-    }
-    if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(() => resolve(), { timeout: 1200 });
-      return;
-    }
-    setTimeout(resolve, 80);
-  });
-
   async function startSystem() {
-    const coreReady = await loadOrderedGroup([
-      'supabase-config.js',
-      'app-core.js',
-      // Remove imediatamente credenciais e dados de demonstração legados.
-      'core-safety.js'
-    ], 'núcleo');
-
-    if (!coreReady) {
+    try {
+      await loadOrderedGroup([
+        'supabase-config.js',
+        'app-core.js',
+        'core-safety.js'
+      ], 'núcleo');
+    } catch {
       console.error('[X-Burguer] Falha crítica ao carregar o núcleo do sistema.');
       return;
     }
@@ -77,49 +82,38 @@
       'change-calculator.js',
       'business-rules-v2.js',
       'delivery-date-scope.js',
-      // Fonte única para dias, períodos, somas em centavos, contagens e auditoria.
       'metrics-consistency-v4.js',
-      // Finaliza o dia no banco, confirma a gravação e preserva o histórico fechado.
       'closing-continuity.js',
-      // Última barreira: impede concluir pedidos inválidos e confere a UI final.
       'final-integrity-guards.js'
     ];
 
-    await loadOrderedGroup(essential, 'recurso');
+    try {
+      await loadOrderedGroup(essential, 'recurso');
+    } catch {
+      console.error('[X-Burguer] Um recurso essencial não foi carregado. Recarregue a página.');
+      return;
+    }
 
-    // Painéis gerenciais e históricos são úteis, mas não precisam atrasar login,
-    // banco, cadastro de entrega ou conferência de pagamento.
-    const deferred = [
+    // Antes estes recursos dependiam de um evento + timeout. Em notebooks mais
+    // lentos esse evento podia ser perdido, deixando Relatórios e outros painéis
+    // incompletos. Agora o conjunto gerencial sempre é carregado em todos aparelhos.
+    const management = [
       'ticket-average.js',
       'operations-pro.js',
       'report-date-filter.js',
       'closing-history.js'
     ];
 
-    let deferredStarted = false;
-    async function loadDeferredEnhancements() {
-      if (deferredStarted) return;
-      deferredStarted = true;
-
-      for (const file of deferred) {
-        await waitForIdle();
-        try {
-          await loadScript(`./${file}?v=${version}`, true);
-        } catch (error) {
-          console.error(`[X-Burguer] Não foi possível carregar recurso adicional ${file}:`, error);
-        }
-      }
-
-      if (typeof renderAll === 'function' && !document.hidden) renderAll();
-      window.dispatchEvent(new CustomEvent('xb:enhancements-ready'));
+    try {
+      await loadOrderedGroup(management, 'recurso gerencial');
+    } catch {
+      console.error('[X-Burguer] Falha ao completar os recursos gerenciais.');
+      return;
     }
 
-    window.addEventListener('xb:cloud-ready', loadDeferredEnhancements, { once: true });
-
-    setTimeout(() => {
-      const appVisible = !document.getElementById('appView')?.classList.contains('hidden');
-      if (appVisible || window.XBCloud?.state?.connected) loadDeferredEnhancements();
-    }, 1600);
+    if (typeof renderAll === 'function' && !document.hidden) renderAll();
+    window.dispatchEvent(new CustomEvent('xb:enhancements-ready'));
+    window.dispatchEvent(new CustomEvent('xb:system-ready', { detail: { version } }));
   }
 
   startSystem().catch(error => {
