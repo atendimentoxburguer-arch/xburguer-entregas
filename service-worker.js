@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v27`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v28`;
 
 const APP_SHELL = [
   './',
@@ -19,8 +19,10 @@ const APP_SHELL = [
   './supabase-config.js',
   './cloud-auth-guard.js',
   './database-prep.js',
+  './performance-mode.js',
   './confirm-ui.js',
   './system-production-v2.js',
+  './system-update.js',
   './closing-summary.js',
   './system-audit.js',
   './system-integrity-v3.js',
@@ -37,7 +39,6 @@ const APP_SHELL = [
   './database-cloud-v2.js',
   './atomic-delivery-code.js',
   './auth-onboarding.js',
-  './performance-mode.js',
   './currency-inputs.js',
   './change-calculator.js',
   './business-rules-v2.js',
