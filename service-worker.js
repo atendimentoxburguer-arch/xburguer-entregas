@@ -21,9 +21,7 @@ const APP_SHELL = [
   './database-prep.js',
   './confirm-ui.js',
   './system-production-v2.js',
-  './system-update.js',
   './closing-summary.js',
-  './ticket-average.js',
   './system-audit.js',
   './system-integrity-v3.js',
   './metrics-consistency-v4.js',
@@ -90,7 +88,7 @@ async function cacheFirst(request) {
   const cached = (await cache.match(request)) || (await cache.match(request, { ignoreSearch: true }));
   if (cached) return cached;
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, { cache: 'no-store' });
     if (response && (response.ok || response.type === 'opaque')) {
       cache.put(request, response.clone()).catch(() => {});
     }
@@ -100,43 +98,19 @@ async function cacheFirst(request) {
   }
 }
 
-async function staleWhileRevalidate(request, event) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
-
-  const refresh = fetch(request, { cache: 'no-store' }).then(response => {
-    if (response && (response.ok || response.type === 'opaque')) {
-      cache.put(request, response.clone()).catch(() => {});
-    }
-    return response;
-  }).catch(() => null);
-
-  event.waitUntil(refresh.then(() => undefined).catch(() => undefined));
-  if (cached) return cached;
-
-  const response = await refresh;
-  if (response) return response;
-  return (await cache.match(request, { ignoreSearch: true })) || Response.error();
-}
-
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  const isSameOrigin = url.origin === self.location.origin;
-  if (!isSameOrigin) return;
+  if (url.origin !== self.location.origin) return;
 
   const isCode = /\.(?:html?|js|css|webmanifest)$/i.test(url.pathname);
-  const isLoader = /\/app\.js$/i.test(url.pathname);
 
-  if (request.mode === 'navigate' || isLoader) {
+  // Código e estilos sempre tentam a rede primeiro. Assim dois computadores
+  // conectados nunca ficam presos em versões diferentes do painel.
+  if (request.mode === 'navigate' || isCode) {
     event.respondWith(networkFirst(request));
-    return;
-  }
-
-  if (isCode) {
-    event.respondWith(staleWhileRevalidate(request, event));
     return;
   }
 
