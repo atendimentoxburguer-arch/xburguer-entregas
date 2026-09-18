@@ -10,6 +10,8 @@ const worker = fs.readFileSync('service-worker.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const pwa = fs.readFileSync('pwa-app.js', 'utf8');
 const core = fs.readFileSync('app-core.js', 'utf8');
+const production = fs.readFileSync('system-production-v2.js', 'utf8');
+const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
 
 const appFilesRaw = [...app.matchAll(/'([^']+\.js)'/g)].map(match => match[1]);
 const appFiles = unique(appFilesRaw);
@@ -47,6 +49,14 @@ assert(appVersion, 'Versão do carregador não encontrada');
 assert.strictEqual(indexAppVersion, appVersion, 'index.html aponta para versão diferente do app.js');
 assert.strictEqual(indexStyleVersion, appVersion, 'index.html aponta para versão diferente dos estilos');
 assert.strictEqual(pwaVersion, appVersion, 'PWA usa versão diferente do carregador principal');
+const manifestIconVersions = (manifest.icons || []).map(icon => String(icon.src || '').match(/\?v=([^&]+)/)?.[1]).filter(Boolean);
+assert(manifestIconVersions.length > 0, 'Manifest deve versionar os ícones');
+manifestIconVersions.forEach(version => assert.strictEqual(version, appVersion, 'Manifest usa versão diferente do carregador principal'));
+
+assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa usar RPC atômico do banco');
+assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
+assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
+assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
 
 assert(!core.includes("password: '123456'"), 'Credencial local de demonstração não pode existir no núcleo');
 assert(!core.includes("email: 'admin@xburguer.com'"), 'E-mail local de demonstração não pode existir no núcleo');
