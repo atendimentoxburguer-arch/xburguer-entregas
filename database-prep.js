@@ -141,8 +141,8 @@
       deliveryIds.add(item.id);
       if (codes.has(item.code)) issues.push(`Número de pedido duplicado: ${item.code}`);
       codes.add(item.code);
-      if (!item.address) warnings.push(`Pedido #${item.code} está sem endereço.`);
-      if (item.orderValue <= 0) warnings.push(`Pedido #${item.code} está com valor zerado.`);
+      if (!item.address) issues.push(`Pedido #${item.code} está sem endereço.`);
+      if (item.orderValue <= 0) issues.push(`Pedido #${item.code} está com valor inválido.`);
       if (item.courierId && !snapshot.couriers.some(courierItem => courierItem.id === item.courierId)) {
         issues.push(`Pedido #${item.code} aponta para um entregador inexistente.`);
       }
