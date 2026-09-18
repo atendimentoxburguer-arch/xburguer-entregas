@@ -178,49 +178,8 @@
     notify('Backup seguro gerado sem incluir senha de acesso.');
   }, true);
 
-  // Corrige a restauração do ponto local para que ela passe pelo save() definitivo
-  // e, portanto, também seja sincronizada com o Supabase.
-  document.addEventListener('click', async event => {
-    const button = event.target.closest?.('#restoreRecoveryBtn');
-    if (!button || !cloudEnabled) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-
-    const raw = safeGet('xb_entregas_recovery_v1');
-    if (!raw) return notify('Nenhum ponto de recuperação disponível.', 'error');
-
-    let snapshot;
-    try { snapshot = JSON.parse(raw); } catch { return notify('O ponto de recuperação está inválido.', 'error'); }
-    if (!snapshot?.db || !Array.isArray(snapshot.db.deliveries) || !Array.isArray(snapshot.db.couriers)) {
-      return notify('O ponto de recuperação está inválido.', 'error');
-    }
-
-    const normalized = window.XBDataBridge?.normalize
-      ? window.XBDataBridge.normalize(snapshot.db)
-      : clone(snapshot.db);
-    scrubSettingsSecrets(normalized);
-
-    const ok = typeof window.xbConfirm === 'function'
-      ? await window.xbConfirm({
-          title: 'Restaurar ponto de recuperação?',
-          text: 'Os dados atuais serão substituídos pela última cópia local e a alteração será sincronizada com o banco online.',
-          detail: snapshot.savedAt ? `Cópia criada em ${new Date(snapshot.savedAt).toLocaleString('pt-BR')}` : '',
-          warning: 'Baixe um backup antes se quiser preservar o estado atual.',
-          confirmText: 'Restaurar dados',
-          cancelText: 'Manter dados atuais',
-          icon: 'rotate-ccw',
-          kicker: 'RECUPERAÇÃO DE DADOS',
-          tone: 'warning'
-        })
-      : window.confirm('Restaurar o último ponto de recuperação?');
-    if (!ok) return;
-
-    db = normalized;
-    save();
-    notify('Dados restaurados. A sincronização online será atualizada automaticamente.');
-    setTimeout(() => location.reload(), 900);
-  }, true);
+  // A restauração de ponto local em ambiente com Supabase é tratada exclusivamente
+  // por system-production-v2.js, que usa uma transação autoritativa no banco.
 
   // Mantém timestamps locais úteis para conciliação entre vários aparelhos.
   document.getElementById('courierForm')?.addEventListener('submit', () => {
