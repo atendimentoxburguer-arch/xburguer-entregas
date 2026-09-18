@@ -711,7 +711,7 @@ $('exportCsvBtn').addEventListener('click', () => {
   const headers = ['Código', 'Data', 'Cliente', 'Telefone', 'Endereço', 'Entregador', 'Pedido', 'Taxa', 'Pagamento', 'Troco para', 'Observações', 'Status'];
   const rows = db.deliveries.map(item => [
     item.code,
-    new Date(item.createdAt).toLocaleString('pt-BR'),
+    new Date(item.createdAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
     item.client || '',
     item.phone || '',
     addressLabel(item),
