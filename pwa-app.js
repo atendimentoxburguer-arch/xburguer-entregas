@@ -1,6 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
+  const APP_VERSION = '20260918-arch1';
 
   let deferredPrompt = null;
   let installButton = null;
@@ -15,7 +16,7 @@
     if (!document.querySelector('link[rel="manifest"]')) {
       const manifest = document.createElement('link');
       manifest.rel = 'manifest';
-      manifest.href = './manifest.webmanifest?v=20260911-1530';
+      manifest.href = './manifest.webmanifest?v=${APP_VERSION}';
       document.head.appendChild(manifest);
     }
 
@@ -36,23 +37,23 @@
 
     const existingIcon = document.querySelector('link[rel="icon"]');
     if (existingIcon) {
-      existingIcon.href = './assets/app-icon-192.png?v=20260911-1530';
+      existingIcon.href = './assets/app-icon-192.png?v=${APP_VERSION}';
       existingIcon.type = 'image/png';
     } else {
       const icon = document.createElement('link');
       icon.rel = 'icon';
-      icon.href = './assets/app-icon-192.png?v=20260911-1530';
+      icon.href = './assets/app-icon-192.png?v=${APP_VERSION}';
       icon.type = 'image/png';
       document.head.appendChild(icon);
     }
 
     const existingApple = document.querySelector('link[rel="apple-touch-icon"]');
     if (existingApple) {
-      existingApple.href = './assets/app-icon-512.png?v=20260911-1530';
+      existingApple.href = './assets/app-icon-512.png?v=${APP_VERSION}';
     } else {
       const apple = document.createElement('link');
       apple.rel = 'apple-touch-icon';
-      apple.href = './assets/app-icon-512.png?v=20260911-1530';
+      apple.href = './assets/app-icon-512.png?v=${APP_VERSION}';
       document.head.appendChild(apple);
     }
   }
@@ -145,7 +146,13 @@
 
   async function registerAppWorker() {
     try {
-      await navigator.serviceWorker.register('./service-worker.js?v=20260911-1530', { scope: './' });
+      if (!window.__xbLoaderRegisteredServiceWorker) {
+        const registration = await navigator.serviceWorker.register(`./service-worker.js?v=${APP_VERSION}`, {
+          scope: './',
+          updateViaCache: 'none'
+        });
+        registration.update().catch(() => {});
+      }
       if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
     } catch (error) {
       console.error('[X-Burguer] Não foi possível ativar o modo aplicativo:', error);
