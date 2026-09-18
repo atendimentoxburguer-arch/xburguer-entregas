@@ -80,6 +80,7 @@
       if (key !== todayKeyCache) {
         todayKeyCache = key;
         todayTextCache = new Date().toLocaleDateString('pt-BR', {
+          timeZone: 'America/Sao_Paulo',
           weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
         });
       }
