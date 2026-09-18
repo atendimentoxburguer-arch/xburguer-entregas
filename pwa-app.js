@@ -16,7 +16,7 @@
     if (!document.querySelector('link[rel="manifest"]')) {
       const manifest = document.createElement('link');
       manifest.rel = 'manifest';
-      manifest.href = './manifest.webmanifest?v=${APP_VERSION}';
+      manifest.href = `./manifest.webmanifest?v=${APP_VERSION}`;
       document.head.appendChild(manifest);
     }
 
@@ -37,23 +37,23 @@
 
     const existingIcon = document.querySelector('link[rel="icon"]');
     if (existingIcon) {
-      existingIcon.href = './assets/app-icon-192.png?v=${APP_VERSION}';
+      existingIcon.href = `./assets/app-icon-192.png?v=${APP_VERSION}`;
       existingIcon.type = 'image/png';
     } else {
       const icon = document.createElement('link');
       icon.rel = 'icon';
-      icon.href = './assets/app-icon-192.png?v=${APP_VERSION}';
+      icon.href = `./assets/app-icon-192.png?v=${APP_VERSION}`;
       icon.type = 'image/png';
       document.head.appendChild(icon);
     }
 
     const existingApple = document.querySelector('link[rel="apple-touch-icon"]');
     if (existingApple) {
-      existingApple.href = './assets/app-icon-512.png?v=${APP_VERSION}';
+      existingApple.href = `./assets/app-icon-512.png?v=${APP_VERSION}`;
     } else {
       const apple = document.createElement('link');
       apple.rel = 'apple-touch-icon';
-      apple.href = './assets/app-icon-512.png?v=${APP_VERSION}';
+      apple.href = `./assets/app-icon-512.png?v=${APP_VERSION}`;
       document.head.appendChild(apple);
     }
   }
