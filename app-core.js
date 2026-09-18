@@ -23,12 +23,15 @@ function refreshIcons() {
 window.addEventListener('load', refreshIcons);
 
 function dateKey(date = new Date()) {
+  const canonical = window.XBMetrics?.dayKey?.(date);
+  if (canonical) return canonical;
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function fmtDateTime(value) {
   if (!value) return '-';
   return new Date(value).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
     day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
   });
 }
@@ -47,8 +50,8 @@ function initialDB() {
     settings: {
       storeName: 'X-Burguer Entregas',
       defaultFee: 6,
-      email: 'admin@xburguer.com',
-      password: '123456'
+      email: '',
+      password: ''
     },
     couriers: [
       { id: 'carlos', name: 'Carlos Oliveira', phone: '(62) 99999-1111', fee: 6, active: true },
@@ -99,7 +102,8 @@ function cleanLegacyChangeNote(notes) {
 
 function courier(id) { return db.couriers.find(item => item.id === id); }
 function todayDeliveries() {
-  const today = dateKey();
+  const today = window.XBMetrics?.dayKey?.() || dateKey();
+  if (window.XBMetrics?.forDay) return window.XBMetrics.forDay(db.deliveries || [], today);
   return db.deliveries.filter(item => dateKey(new Date(item.createdAt)) === today);
 }
 function delivered(list) { return list.filter(item => item.status === 'Entregue'); }
@@ -233,13 +237,16 @@ function initials(name) {
   return String(name || '').split(' ').filter(Boolean).slice(0, 2).map(item => item[0]).join('').toUpperCase();
 }
 function filterRange(items, range) {
+  if (window.XBMetrics?.filterRange) return window.XBMetrics.filterRange(items || [], range);
   if (range === 'all') return items;
   if (range === 'today') {
     const today = dateKey();
     return items.filter(item => dateKey(new Date(item.createdAt)) === today);
   }
+  const days = Math.max(1, Math.floor(Number(range) || 1));
   const limit = new Date();
-  limit.setDate(limit.getDate() - Number(range));
+  limit.setHours(0, 0, 0, 0);
+  limit.setDate(limit.getDate() - (days - 1));
   return items.filter(item => new Date(item.createdAt) >= limit);
 }
 
@@ -586,12 +593,9 @@ $('reopenDayBtn').addEventListener('click', () => {
 // REPORTS
 $('reportRange').addEventListener('change', renderReports);
 function reportItems() {
-  let items = db.deliveries.filter(item => item.status === 'Entregue');
-  const range = $('reportRange').value;
-  if (range === 'all') return items;
-  const limit = new Date();
-  limit.setDate(limit.getDate() - Number(range));
-  return items.filter(item => new Date(item.createdAt) >= limit);
+  if (window.XBMetrics?.selectedReportDelivered) return window.XBMetrics.selectedReportDelivered();
+  const items = db.deliveries.filter(item => item.status === 'Entregue');
+  return filterRange(items, $('reportRange').value);
 }
 
 function renderReports() {
