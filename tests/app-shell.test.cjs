@@ -7,17 +7,29 @@ function unique(values) {
 
 const app = fs.readFileSync('app.js', 'utf8');
 const worker = fs.readFileSync('service-worker.js', 'utf8');
+const index = fs.readFileSync('index.html', 'utf8');
+const pwa = fs.readFileSync('pwa-app.js', 'utf8');
+const core = fs.readFileSync('app-core.js', 'utf8');
 
-const appFiles = unique([...app.matchAll(/'([^']+\.js)'/g)].map(match => match[1]));
+const appFilesRaw = [...app.matchAll(/'([^']+\.js)'/g)].map(match => match[1]);
+const appFiles = unique(appFilesRaw);
 assert(appFiles.length > 10, 'Lista de módulos do app.js parece incompleta');
 appFiles.forEach(file => assert(fs.existsSync(file), `Módulo carregado pelo app.js não existe: ${file}`));
 assert(appFiles.includes('database-cloud-v2.js'), 'Sincronização em nuvem precisa estar no app.js');
 assert(appFiles.includes('metrics-consistency-v4.js'), 'Métricas consistentes precisam estar no app.js');
 assert(appFiles.includes('closing-continuity.js'), 'Proteção do fechamento precisa estar no app.js');
 assert(appFiles.includes('final-integrity-guards.js'), 'Barreira final de integridade precisa estar no app.js');
+assert(appFiles.includes('past-day-guard.js'), 'Pendências de dias anteriores precisam ser sinalizadas');
 
-const shellFiles = unique([...worker.matchAll(/'\.\/([^']+)'/g)].map(match => match[1]));
+const metricsPosition = app.indexOf("'metrics-consistency-v4.js'");
+const businessRulesPosition = app.indexOf("'business-rules-v2.js'");
+assert(metricsPosition >= 0 && businessRulesPosition >= 0 && metricsPosition < businessRulesPosition,
+  'Métricas canônicas precisam carregar antes das regras derivadas');
+
+const shellFilesRaw = [...worker.matchAll(/'\.\/([^']+)'/g)].map(match => match[1]);
+const shellFiles = unique(shellFilesRaw);
 assert(shellFiles.length > 10, 'APP_SHELL do service worker parece incompleto');
+assert.strictEqual(shellFiles.length, shellFilesRaw.length, 'APP_SHELL contém arquivos duplicados');
 shellFiles.forEach(file => assert(fs.existsSync(file), `Arquivo do APP_SHELL não existe: ${file}`));
 
 appFiles.forEach(file => {
@@ -27,4 +39,16 @@ appFiles.forEach(file => {
 const cacheVersion = worker.match(/pwa-v(\d+)/)?.[1];
 assert(cacheVersion, 'Versão do cache PWA não encontrada');
 
-console.log(`OK: ${appFiles.length} módulos e ${shellFiles.length} arquivos do app shell conferidos (PWA v${cacheVersion}).`);
+const appVersion = app.match(/const version = '([^']+)'/)?.[1];
+const pwaVersion = pwa.match(/const APP_VERSION = '([^']+)'/)?.[1];
+const indexAppVersion = index.match(/app\.js\?v=([^"'<>]+)/)?.[1];
+const indexStyleVersion = index.match(/styles\.css\?v=([^"'<>]+)/)?.[1];
+assert(appVersion, 'Versão do carregador não encontrada');
+assert.strictEqual(indexAppVersion, appVersion, 'index.html aponta para versão diferente do app.js');
+assert.strictEqual(indexStyleVersion, appVersion, 'index.html aponta para versão diferente dos estilos');
+assert.strictEqual(pwaVersion, appVersion, 'PWA usa versão diferente do carregador principal');
+
+assert(!core.includes("password: '123456'"), 'Credencial local de demonstração não pode existir no núcleo');
+assert(!core.includes("email: 'admin@xburguer.com'"), 'E-mail local de demonstração não pode existir no núcleo');
+
+console.log(`OK: ${appFiles.length} módulos, ${shellFiles.length} arquivos do app shell, versões sincronizadas e PWA v${cacheVersion}.`);
