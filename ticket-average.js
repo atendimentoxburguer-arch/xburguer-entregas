@@ -5,8 +5,9 @@
   function deliveredAverage(items) {
     const done = (items || []).filter(item => item.status === 'Entregue');
     if (!done.length) return 0;
-    const total = done.reduce((sum, item) => sum + Number(item.orderValue || 0), 0);
-    return total / done.length;
+    if (window.XBMetrics?.averageMoney) return window.XBMetrics.averageMoney(done, 'orderValue');
+    const cents = done.reduce((sum, item) => sum + Math.round(Number(item.orderValue || 0) * 100), 0);
+    return Math.round(cents / done.length) / 100;
   }
 
   function appendTicketStat(containerId, value, detail) {
