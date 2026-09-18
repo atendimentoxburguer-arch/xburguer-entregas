@@ -3,6 +3,9 @@
   window.__xbClosingSummaryInstalled = true;
 
   const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Pago online'];
+  const sumMoney = (items, field) => window.XBMetrics?.sumMoney
+    ? window.XBMetrics.sumMoney(items || [], field)
+    : Math.round((items || []).reduce((total, item) => total + Math.round(Number(item?.[field] || 0) * 100), 0)) / 100;
 
   function countLabel(count) {
     return `${count} entrega${count === 1 ? '' : 's'}`;
@@ -14,16 +17,16 @@
     const cancelled = today.filter(item => item.status === 'Cancelada');
     const feeRows = today.filter(item => item.status === 'Entregue' || item.status === 'Cancelada');
     const pending = today.filter(item => ['Aguardando', 'Em rota'].includes(item.status));
-    const totalOrderValue = done.reduce((sum, item) => sum + Number(item.orderValue || 0), 0);
-    const totalFees = feeRows.reduce((sum, item) => sum + Number(item.fee || 0), 0);
-    const cancelledFees = cancelled.reduce((sum, item) => sum + Number(item.fee || 0), 0);
+    const totalOrderValue = sumMoney(done, 'orderValue');
+    const totalFees = sumMoney(feeRows, 'fee');
+    const cancelledFees = sumMoney(cancelled, 'fee');
 
     const payments = PAYMENT_METHODS.map(name => {
       const items = done.filter(item => item.payment === name);
       return {
         name,
         count: items.length,
-        value: items.reduce((sum, item) => sum + Number(item.orderValue || 0), 0)
+        value: sumMoney(items, 'orderValue')
       };
     });
 
@@ -36,8 +39,8 @@
         name: item.name,
         count: completedItems.length,
         cancelled: cancelledItems.length,
-        cancelledFees: cancelledItems.reduce((sum, delivery) => sum + Number(delivery.fee || 0), 0),
-        fees: payableItems.reduce((sum, delivery) => sum + Number(delivery.fee || 0), 0)
+        cancelledFees: sumMoney(cancelledItems, 'fee'),
+        fees: sumMoney(payableItems, 'fee')
       };
     });
 
@@ -50,8 +53,8 @@
         name: 'Sem entregador definido',
         count: completedWithoutCourier.length,
         cancelled: cancelledWithoutCourier.length,
-        cancelledFees: cancelledWithoutCourier.reduce((sum, delivery) => sum + Number(delivery.fee || 0), 0),
-        fees: withoutCourier.reduce((sum, delivery) => sum + Number(delivery.fee || 0), 0)
+        cancelledFees: sumMoney(cancelledWithoutCourier, 'fee'),
+        fees: sumMoney(withoutCourier, 'fee')
       });
     }
 
