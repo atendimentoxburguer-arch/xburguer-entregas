@@ -94,9 +94,17 @@
     if (!navigator.onLine) throw new Error('Esta operação precisa de internet para ser confirmada com segurança.');
     const cloud = window.XBCloud;
     if (!cloud?.client) throw new Error('O banco online ainda está conectando. Aguarde alguns segundos e tente novamente.');
+
     const { data, error } = await cloud.client.auth.getSession();
     if (error) throw error;
     if (!data?.session?.user) throw new Error('Sua sessão expirou. Entre novamente antes de continuar.');
+
+    // Nenhuma fila local pode sobreviver a uma operação destrutiva, pois poderia
+    // reaplicar dados antigos logo depois da limpeza/restauração.
+    const synced = await cloud.syncNow?.();
+    if (synced === false || Number(cloud.pendingChanges || 0) > 0) {
+      throw new Error('Ainda existem alterações aguardando sincronização. Aguarde alguns segundos e tente novamente.');
+    }
     return cloud;
   }
 
@@ -106,38 +114,12 @@
     return data || {};
   }
 
-  async function importClosingsAuthoritatively(cloud, closings) {
-    for (const closing of (closings || [])) {
-      if (!closing?.date) continue;
-      if (closing.detailsV2 && Array.isArray(closing.deliverySnapshotV1)) {
-        const { error } = await cloud.client.rpc('xb_import_closing', {
-          p_date: closing.date,
-          p_closed_at: closing.closedAt || null,
-          p_details: closing.detailsV2,
-          p_snapshot: closing.deliverySnapshotV1
-        });
-        if (error) throw error;
-        continue;
-      }
-
-      // Compatibilidade com backups antigos sem snapshot estruturado.
-      const { error } = await cloud.client.rpc('xb_finalize_day', {
-        p_date: closing.date,
-        p_allow_pending: false
-      });
-      if (error) throw error;
-    }
-  }
-
-  async function restoreAuthoritatively(source) {
-    const cloud = await requireAuthoritativeCloud();
-    const normalized = normalizeProductionData(source);
-    const expected = clone(normalized);
-
+  function validateBackupBeforeRestore(normalized) {
     const diagnostic = window.XBDataBridge?.diagnostics?.(normalized);
     if (diagnostic && diagnostic.ok === false) {
       throw new Error(`Backup rejeitado pela verificação de integridade: ${diagnostic.issues.slice(0, 3).join(' • ')}`);
     }
+
     if (window.XBClosingContinuity?.needsRepair) {
       const badClosing = (normalized.closings || []).find(closing =>
         closing?.detailsV2 && Array.isArray(closing?.deliverySnapshotV1) &&
@@ -147,36 +129,58 @@
         throw new Error(`O fechamento de ${badClosing.date || 'data não identificada'} está inconsistente no backup.`);
       }
     }
+  }
 
-    // Primeiro limpa o estado autoritativo. Em seguida baixa esse estado vazio
-    // para que o diff local considere todos os registros do backup como novos.
-    await clearRemoteOperationalData(cloud);
-    const pulledEmpty = await cloud.pullNow?.();
-    if (pulledEmpty === false) throw new Error('Não foi possível confirmar a limpeza do banco antes da restauração.');
+  async function restoreAuthoritatively(source) {
+    const normalized = normalizeProductionData(source);
+    validateBackupBeforeRestore(normalized);
+    const cloud = await requireAuthoritativeCloud();
 
-    db = normalized;
-    save();
+    // Um único RPC executa limpeza + importação em uma transação PostgreSQL.
+    // Se qualquer pedido, entregador ou fechamento for inválido, tudo é revertido.
+    const { data: result, error } = await cloud.client.rpc('xb_restore_backup', {
+      p_settings: normalized.settings || {},
+      p_couriers: normalized.couriers || [],
+      p_deliveries: normalized.deliveries || [],
+      p_closings: normalized.closings || []
+    });
+    if (error) throw error;
 
-    const sent = await cloud.syncNow?.();
-    if (sent === false || Number(cloud.pendingChanges || 0) > 0) {
-      throw new Error('A restauração ainda possui alterações pendentes de sincronização.');
+    const pulled = await cloud.pullNow?.();
+    if (pulled === false) {
+      throw new Error('O backup foi enviado ao banco, mas a conferência no aparelho não foi concluída. Recarregue a página antes de continuar.');
     }
 
-    await importClosingsAuthoritatively(cloud, expected.closings || []);
-    const pulled = await cloud.pullNow?.();
-    if (pulled === false) throw new Error('Não foi possível conferir o backup restaurado no banco.');
+    const expected = {
+      deliveries: normalized.deliveries?.length || 0,
+      couriers: normalized.couriers?.length || 0,
+      closings: normalized.closings?.length || 0
+    };
+    const actual = {
+      deliveries: db.deliveries?.length || 0,
+      couriers: db.couriers?.length || 0,
+      closings: db.closings?.length || 0
+    };
 
-    const deliveryCount = db.deliveries?.length || 0;
-    const courierCount = db.couriers?.length || 0;
-    const closingCount = db.closings?.length || 0;
-    if (deliveryCount !== (expected.deliveries?.length || 0) ||
-        courierCount !== (expected.couriers?.length || 0) ||
-        closingCount !== (expected.closings?.length || 0)) {
-      throw new Error('A conferência final da restauração encontrou diferença de quantidade. Nenhum sucesso foi assumido.');
+    if (actual.deliveries !== expected.deliveries ||
+        actual.couriers !== expected.couriers ||
+        actual.closings !== expected.closings) {
+      throw new Error('A conferência final da restauração encontrou diferença de quantidade. Recarregue a página antes de operar.');
+    }
+
+    const diagnostic = window.XBDataBridge?.diagnostics?.(db);
+    if (diagnostic && diagnostic.ok === false) {
+      throw new Error(`O banco restaurado apresentou divergência: ${diagnostic.issues.slice(0, 3).join(' • ')}`);
+    }
+    const badClosing = window.XBClosingContinuity?.needsRepair
+      ? (db.closings || []).find(closing => window.XBClosingContinuity.needsRepair(closing))
+      : null;
+    if (badClosing) {
+      throw new Error(`O fechamento de ${badClosing.date || 'data não identificada'} não passou na conferência após a restauração.`);
     }
 
     if (typeof renderAll === 'function') renderAll();
-    return { deliveryCount, courierCount, closingCount };
+    return result || actual;
   }
 
   function updateStaticUi() {
