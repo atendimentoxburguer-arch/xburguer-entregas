@@ -28,7 +28,8 @@ const businessRulesPosition = app.indexOf("'business-rules-v2.js'");
 assert(metricsPosition >= 0 && businessRulesPosition >= 0 && metricsPosition < businessRulesPosition,
   'Métricas canônicas precisam carregar antes das regras derivadas');
 
-const shellFilesRaw = [...worker.matchAll(/'\.\/([^']+)'/g)].map(match => match[1]);
+const shellBlock = worker.match(/const APP_SHELL = \[([\s\S]*?)\];/)?.[1] || '';
+const shellFilesRaw = [...shellBlock.matchAll(/'\.\/([^']+)'/g)].map(match => match[1]);
 const shellFiles = unique(shellFilesRaw);
 assert(shellFiles.length > 10, 'APP_SHELL do service worker parece incompleto');
 assert.strictEqual(shellFiles.length, shellFilesRaw.length, 'APP_SHELL contém arquivos duplicados');
@@ -57,6 +58,10 @@ assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa us
 assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
 assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
 assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
+const legacyUpdate = fs.readFileSync('system-update.js', 'utf8');
+const legacyHardening = fs.readFileSync('production-hardening.js', 'utf8');
+assert(legacyUpdate.includes('if (window.XB_SUPABASE_CONFIG?.enabled) return;'), 'Restauração local deve ser bloqueada quando Supabase está ativo');
+assert(!legacyHardening.includes("closest?.('#restoreRecoveryBtn')"), 'production-hardening não pode interceptar a restauração autoritativa');
 
 assert(!core.includes("password: '123456'"), 'Credencial local de demonstração não pode existir no núcleo');
 assert(!core.includes("email: 'admin@xburguer.com'"), 'E-mail local de demonstração não pode existir no núcleo');
