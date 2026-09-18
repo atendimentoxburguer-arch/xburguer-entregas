@@ -86,6 +86,9 @@
     });
 
     document.getElementById('restoreRecoveryBtn')?.addEventListener('click', async () => {
+      // Em produção, a restauração é autoritativa e transacional no Supabase.
+      // Apenas instalações locais sem nuvem usam este caminho legado.
+      if (window.XB_SUPABASE_CONFIG?.enabled) return;
       const raw = safeStorageGet(RECOVERY_KEY);
       if (!raw) return toast('Nenhum ponto de recuperação disponível.', 'error');
       let snapshot;
