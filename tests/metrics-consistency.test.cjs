@@ -66,14 +66,26 @@ assert.strictEqual(M.dayKey('2026-09-12T03:30:00Z'), '2026-09-12');
 assert.strictEqual(M.addDaysKey('2026-09-01', -1), '2026-08-31');
 
 // Períodos são dias de calendário, não janelas móveis de horas.
-const rangeRows = [
-  { createdAt: '2026-09-06T15:00:00Z' },
-  { createdAt: '2026-09-07T15:00:00Z' },
-  { createdAt: '2026-09-12T15:00:00Z' }
-];
 const RealDate = context.Date;
-// A função específica de data continua validada por dayKey/forDay abaixo; aqui validamos a soma segura.
-assert.strictEqual(Array.isArray(rangeRows), true);
+class FixedDate extends RealDate {
+  constructor(...args) {
+    super(...(args.length ? args : ['2026-09-12T15:00:00Z']));
+  }
+  static now() { return new RealDate('2026-09-12T15:00:00Z').getTime(); }
+}
+context.Date = FixedDate;
+const rangeRows = [
+  { id: 'outside', createdAt: '2026-09-05T15:00:00Z' },
+  { id: 'first', createdAt: '2026-09-06T03:00:00Z' },
+  { id: 'middle', createdAt: '2026-09-07T15:00:00Z' },
+  { id: 'last', createdAt: '2026-09-12T15:00:00Z' }
+];
+assert.deepStrictEqual(
+  M.filterRange(rangeRows, '7').map(item => item.id),
+  ['first', 'middle', 'last'],
+  'Últimos 7 dias devem incluir exatamente sete dias de calendário'
+);
+context.Date = RealDate;
 
 // Soma monetária em centavos: não pode acumular resíduos de ponto flutuante.
 const moneyRows = [{ value: 10.10 }, { value: 20.20 }, { value: 0.10 }];
