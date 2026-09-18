@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20260918-arch2';
+  const APP_VERSION = '20260918-arch3';
 
   let deferredPrompt = null;
   let installButton = null;
