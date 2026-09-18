@@ -89,6 +89,82 @@
     return window.confirm(options?.text || options?.title || 'Confirmar ação?');
   }
 
+
+  async function requireAuthoritativeCloud() {
+    if (!navigator.onLine) throw new Error('Esta operação precisa de internet para ser confirmada com segurança.');
+    const cloud = window.XBCloud;
+    if (!cloud?.client) throw new Error('O banco online ainda está conectando. Aguarde alguns segundos e tente novamente.');
+    const { data, error } = await cloud.client.auth.getSession();
+    if (error) throw error;
+    if (!data?.session?.user) throw new Error('Sua sessão expirou. Entre novamente antes de continuar.');
+    return cloud;
+  }
+
+  async function clearRemoteOperationalData(cloud) {
+    const { data, error } = await cloud.client.rpc('xb_clear_operational_data');
+    if (error) throw error;
+    return data || {};
+  }
+
+  async function importClosingsAuthoritatively(cloud, closings) {
+    for (const closing of (closings || [])) {
+      if (!closing?.date) continue;
+      if (closing.detailsV2 && Array.isArray(closing.deliverySnapshotV1)) {
+        const { error } = await cloud.client.rpc('xb_import_closing', {
+          p_date: closing.date,
+          p_closed_at: closing.closedAt || null,
+          p_details: closing.detailsV2,
+          p_snapshot: closing.deliverySnapshotV1
+        });
+        if (error) throw error;
+        continue;
+      }
+
+      // Compatibilidade com backups antigos sem snapshot estruturado.
+      const { error } = await cloud.client.rpc('xb_finalize_day', {
+        p_date: closing.date,
+        p_allow_pending: false
+      });
+      if (error) throw error;
+    }
+  }
+
+  async function restoreAuthoritatively(source) {
+    const cloud = await requireAuthoritativeCloud();
+    const normalized = normalizeProductionData(source);
+    const expected = clone(normalized);
+
+    // Primeiro limpa o estado autoritativo. Em seguida baixa esse estado vazio
+    // para que o diff local considere todos os registros do backup como novos.
+    await clearRemoteOperationalData(cloud);
+    const pulledEmpty = await cloud.pullNow?.();
+    if (pulledEmpty === false) throw new Error('Não foi possível confirmar a limpeza do banco antes da restauração.');
+
+    db = normalized;
+    save();
+
+    const sent = await cloud.syncNow?.();
+    if (sent === false || Number(cloud.pendingChanges || 0) > 0) {
+      throw new Error('A restauração ainda possui alterações pendentes de sincronização.');
+    }
+
+    await importClosingsAuthoritatively(cloud, expected.closings || []);
+    const pulled = await cloud.pullNow?.();
+    if (pulled === false) throw new Error('Não foi possível conferir o backup restaurado no banco.');
+
+    const deliveryCount = db.deliveries?.length || 0;
+    const courierCount = db.couriers?.length || 0;
+    const closingCount = db.closings?.length || 0;
+    if (deliveryCount !== (expected.deliveries?.length || 0) ||
+        courierCount !== (expected.couriers?.length || 0) ||
+        closingCount !== (expected.closings?.length || 0)) {
+      throw new Error('A conferência final da restauração encontrou diferença de quantidade. Nenhum sucesso foi assumido.');
+    }
+
+    if (typeof renderAll === 'function') renderAll();
+    return { deliveryCount, courierCount, closingCount };
+  }
+
   function updateStaticUi() {
     const loginEmail = document.getElementById('loginEmail');
     if (loginEmail) loginEmail.placeholder = 'Seu e-mail de acesso';
@@ -245,10 +321,8 @@
           tone: 'warning'
         });
         if (!ok) return;
-        db = normalized;
-        save();
-        await window.XBCloud?.syncNow?.();
-        notify('Backup restaurado e enviado para o banco online.');
+        await restoreAuthoritatively(normalized);
+        notify('Backup restaurado, sincronizado e conferido no banco online.');
         setTimeout(() => location.reload(), 900);
       } catch (error) {
         console.error('[X-Burguer] Backup rejeitado:', error);
@@ -275,12 +349,17 @@
         tone: 'danger'
       });
       if (!ok) return;
-      db.deliveries = [];
-      db.closings = [];
-      save();
-      if (typeof renderAll === 'function') renderAll();
-      if (navigator.onLine) await window.XBCloud?.syncNow?.();
-      notify(navigator.onLine ? 'Dados apagados e sincronizados.' : 'Dados apagados neste aparelho. A exclusão será sincronizada quando a internet voltar.');
+      try {
+        const cloud = await requireAuthoritativeCloud();
+        const result = await clearRemoteOperationalData(cloud);
+        const pulled = await cloud.pullNow?.();
+        if (pulled === false) throw new Error('A limpeza foi enviada, mas não foi possível conferir o banco no aparelho.');
+        if (typeof renderAll === 'function') renderAll();
+        notify(`Dados apagados e confirmados no banco · ${Number(result.deliveriesDeleted || 0)} entrega(s) · ${Number(result.closingsDeleted || 0)} fechamento(s).`);
+      } catch (error) {
+        console.error('[X-Burguer] Limpeza autoritativa:', error);
+        notify(String(error?.message || 'Não foi possível apagar os dados com segurança.'), 'error');
+      }
     }, true);
 
     document.addEventListener('click', async event => {
@@ -311,11 +390,13 @@
       });
       if (!ok) return;
 
-      db = normalized;
-      save();
-      if (typeof renderAll === 'function') renderAll();
-      if (navigator.onLine) await window.XBCloud?.syncNow?.();
-      notify('Dados restaurados com segurança.');
+      try {
+        await restoreAuthoritatively(normalized);
+        notify('Dados restaurados, sincronizados e conferidos com segurança.');
+      } catch (error) {
+        console.error('[X-Burguer] Recuperação autoritativa:', error);
+        notify(String(error?.message || 'Não foi possível restaurar os dados com segurança.'), 'error');
+      }
     }, true);
   }
 
