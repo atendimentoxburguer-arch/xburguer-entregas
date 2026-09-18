@@ -53,10 +53,12 @@
         note?.remove();
       }
 
-      // A quantidade de entregas continua significando entregas concluídas.
+      // Quantidade e valor usam a mesma base: toda entrega cuja taxa é devida.
       const deliveryBlock = dataRows[0]?.children?.[1];
+      const deliveryLabel = deliveryBlock?.querySelector('span');
       const deliveryValue = deliveryBlock?.querySelector('strong');
-      if (deliveryValue) deliveryValue.textContent = String(completed.length);
+      if (deliveryLabel) deliveryLabel.textContent = 'Entregas com taxa';
+      if (deliveryValue) deliveryValue.textContent = String(rows.length);
     });
   }
 
