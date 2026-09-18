@@ -134,6 +134,20 @@
     const normalized = normalizeProductionData(source);
     const expected = clone(normalized);
 
+    const diagnostic = window.XBDataBridge?.diagnostics?.(normalized);
+    if (diagnostic && diagnostic.ok === false) {
+      throw new Error(`Backup rejeitado pela verificação de integridade: ${diagnostic.issues.slice(0, 3).join(' • ')}`);
+    }
+    if (window.XBClosingContinuity?.needsRepair) {
+      const badClosing = (normalized.closings || []).find(closing =>
+        closing?.detailsV2 && Array.isArray(closing?.deliverySnapshotV1) &&
+        window.XBClosingContinuity.needsRepair(closing)
+      );
+      if (badClosing) {
+        throw new Error(`O fechamento de ${badClosing.date || 'data não identificada'} está inconsistente no backup.`);
+      }
+    }
+
     // Primeiro limpa o estado autoritativo. Em seguida baixa esse estado vazio
     // para que o diff local considere todos os registros do backup como novos.
     await clearRemoteOperationalData(cloud);
