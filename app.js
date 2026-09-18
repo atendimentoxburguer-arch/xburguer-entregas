@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260916-device-sync2';
+  const version = '20260918-arch1';
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.
@@ -12,6 +12,7 @@
   // Também registra a versão atual do service worker diretamente pelo carregador.
   // Assim um notebook com um PWA antigo não depende do cache anterior para se atualizar.
   if ('serviceWorker' in navigator) {
+    window.__xbLoaderRegisteredServiceWorker = true;
     const reloadKey = `xb_sw_reload_${version}`;
     let reloadingForWorker = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -82,6 +83,8 @@
     const essential = [
       'cloud-auth-guard.js',
       'database-prep.js',
+      // Carrega a fonte canônica de datas, períodos e dinheiro antes das regras derivadas.
+      'metrics-consistency-v4.js',
       'performance-mode.js',
       'confirm-ui.js',
       'system-production-v2.js',
@@ -101,9 +104,10 @@
       'change-calculator.js',
       'business-rules-v2.js',
       'delivery-date-scope.js',
-      'metrics-consistency-v4.js',
       'closing-continuity.js',
-      'final-integrity-guards.js'
+      'final-integrity-guards.js',
+      // Nunca deixa um dia anterior com pedido pendente passar despercebido.
+      'past-day-guard.js'
     ];
 
     try {
