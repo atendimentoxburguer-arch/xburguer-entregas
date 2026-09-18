@@ -8,19 +8,17 @@
   const isPending = item => ['Aguardando', 'Em rota'].includes(item?.status);
 
   function sameDay(item, key) {
-    return Boolean(key) && dateKey(new Date(item.createdAt)) === key;
+    const itemDay = window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item.createdAt));
+    return Boolean(key) && itemDay === key;
   }
 
   function reportFeeItems() {
-    let items = (db.deliveries || []).filter(isFeePayable);
+    if (window.XBMetrics?.selectedReportFees) return window.XBMetrics.selectedReportFees();
+    const items = (db.deliveries || []).filter(isFeePayable);
     const specificDate = window.XBReportDateFilter?.selectedDate || '';
     if (specificDate) return items.filter(item => sameDay(item, specificDate));
-
     const range = document.getElementById('reportRange')?.value || '7';
-    if (range === 'all') return items;
-    const limit = new Date();
-    limit.setDate(limit.getDate() - Number(range || 7));
-    return items.filter(item => new Date(item.createdAt) >= limit);
+    return typeof filterRange === 'function' ? filterRange(items, range) : items;
   }
 
   function patchCourierCards() {
