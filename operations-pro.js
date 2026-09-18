@@ -7,22 +7,26 @@
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 
   const safeNumber = value => Number.isFinite(Number(value)) ? Number(value) : 0;
-  const sum = (items, field) => items.reduce((total, item) => total + safeNumber(item[field]), 0);
+  const sum = (items, field) => window.XBMetrics?.sumMoney
+    ? window.XBMetrics.sumMoney(items || [], field)
+    : Math.round((items || []).reduce((total, item) => total + Math.round(safeNumber(item[field]) * 100), 0)) / 100;
+  const businessDay = value => window.XBMetrics?.dayKey?.(value) || dateKey(value instanceof Date ? value : new Date(value));
+  const addDays = (key, delta) => window.XBMetrics?.addDaysKey?.(key, delta) || (() => {
+    const [year, month, day] = String(key || '').split('-').map(Number);
+    if (!year || !month || !day) return '';
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() + Number(delta || 0));
+    return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+  })();
   const deliveredItems = items => (items || []).filter(item => item.status === 'Entregue');
   const pendingItems = items => (items || []).filter(item => item.status === 'Aguardando' || item.status === 'Em rota');
 
-  function dateAtStart(value = new Date()) {
-    const date = new Date(value);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  }
-
   function dayItems(date, status = null) {
-    const key = dateKey(date);
-    return db.deliveries.filter(item => {
-      const sameDay = dateKey(new Date(item.createdAt)) === key;
-      return sameDay && (!status || item.status === status);
-    });
+    const key = businessDay(date);
+    const rows = window.XBMetrics?.forDay
+      ? window.XBMetrics.forDay(db.deliveries || [], key)
+      : (db.deliveries || []).filter(item => businessDay(item.createdAt) === key);
+    return status ? rows.filter(item => item.status === status) : rows;
   }
 
   function percentDelta(current, previous) {
@@ -83,17 +87,21 @@
     const today = todayDeliveries();
     const doneToday = deliveredItems(today);
     const pending = pendingItems(today);
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const doneYesterday = deliveredItems(dayItems(yesterday));
+    const todayKey = businessDay();
+    const yesterdayKey = addDays(todayKey, -1);
+    const doneYesterday = deliveredItems(dayItems(yesterdayKey));
 
     const revenueToday = sum(doneToday, 'orderValue');
     const revenueYesterday = sum(doneYesterday, 'orderValue');
     const revenueDelta = percentDelta(revenueToday, revenueYesterday);
 
-    const sevenDaysStart = dateAtStart();
-    sevenDaysStart.setDate(sevenDaysStart.getDate() - 6);
-    const last7 = deliveredItems(db.deliveries.filter(item => new Date(item.createdAt) >= sevenDaysStart));
+    const last7 = deliveredItems(window.XBMetrics?.filterRange
+      ? window.XBMetrics.filterRange(db.deliveries || [], '7')
+      : (db.deliveries || []).filter(item => {
+          const key = businessDay(item.createdAt);
+          const start = addDays(todayKey, -6);
+          return key && key >= start && key <= todayKey;
+        }));
     const dailyAverage = sum(last7, 'orderValue') / 7;
     const payment = topPayment(doneToday);
     const courierTop = topCourier(doneToday);
@@ -224,18 +232,22 @@
   // ---------------------------------------------------------------------------
   function comparisonItems(range) {
     if (range === 'all') return [];
-    const days = Number(range || 7);
-    const currentStart = new Date();
-    currentStart.setDate(currentStart.getDate() - days);
-    const previousStart = new Date(currentStart);
-    previousStart.setDate(previousStart.getDate() - days);
-    return db.deliveries.filter(item => item.status === 'Entregue' && new Date(item.createdAt) >= previousStart && new Date(item.createdAt) < currentStart);
+    const days = Math.max(1, Math.floor(Number(range || 7)));
+    const currentEnd = businessDay();
+    const currentStart = addDays(currentEnd, -(days - 1));
+    const previousEnd = addDays(currentStart, -1);
+    const previousStart = addDays(previousEnd, -(days - 1));
+    return (db.deliveries || []).filter(item => {
+      if (item.status !== 'Entregue') return false;
+      const key = businessDay(item.createdAt);
+      return key && key >= previousStart && key <= previousEnd;
+    });
   }
 
   function bestRevenueDay(items) {
     const map = new Map();
     deliveredItems(items).forEach(item => {
-      const key = dateKey(new Date(item.createdAt));
+      const key = businessDay(item.createdAt);
       map.set(key, (map.get(key) || 0) + safeNumber(item.orderValue));
     });
     const best = [...map.entries()].sort((a, b) => b[1] - a[1])[0];
