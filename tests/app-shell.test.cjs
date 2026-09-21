@@ -58,6 +58,14 @@ assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa us
 assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
 assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
 assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
+const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
+const closingContinuity = fs.readFileSync('closing-continuity.js', 'utf8');
+const pastDayGuard = fs.readFileSync('past-day-guard.js', 'utf8');
+assert(metrics.includes('openOperationalDayKeys'), 'Métricas precisam conhecer dias ainda abertos');
+assert(metrics.includes("range === 'today'"), 'Filtro padrão precisa tratar a continuidade do dia');
+assert(closingContinuity.includes('function activeDay()'), 'Fechamento precisa selecionar o dia operacional ainda aberto');
+assert(!closingContinuity.includes('recoverPastCompleteDays'), 'O sistema não pode finalizar dias automaticamente');
+assert(pastDayGuard.includes('pastOpenRows'), 'O alerta precisa reconhecer dias anteriores ainda abertos');
 const legacyUpdate = fs.readFileSync('system-update.js', 'utf8');
 const legacyHardening = fs.readFileSync('production-hardening.js', 'utf8');
 assert(legacyUpdate.includes('if (window.XB_SUPABASE_CONFIG?.enabled) return;'), 'Restauração local deve ser bloqueada quando Supabase está ativo');
