@@ -153,7 +153,7 @@
 
   async function finalizeRemote(key) {
     await flushBeforeClosing();
-    const { data, error } = await window.XBCloud.client.rpc('xb_finalize_day', {
+    const { data, error } = await window.XBCloud.client.rpc('xb_finalize_day_explicit', {
       p_date: key,
       p_allow_pending: false
     });
