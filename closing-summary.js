@@ -12,7 +12,8 @@
   }
 
   function buildLiveClosingDetails() {
-    const today = todayDeliveries();
+    const key = window.XBClosingContinuity?.activeDay?.() || dateKey();
+    const today = (db.deliveries || []).filter(item => (window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item?.createdAt))) === key);
     const done = delivered(today);
     const cancelled = today.filter(item => item.status === 'Cancelada');
     const feeRows = today.filter(item => item.status === 'Entregue' || item.status === 'Cancelada');
@@ -96,7 +97,8 @@
   }
 
   function currentClosingDetails() {
-    const closing = db.closings.find(item => item.date === dateKey());
+    const key = window.XBClosingContinuity?.activeDay?.() || dateKey();
+    const closing = db.closings.find(item => item.date === key);
     return normalizedSnapshot(closing) || buildLiveClosingDetails();
   }
 
@@ -162,10 +164,10 @@
     const data = currentClosingDetails();
 
     document.getElementById('closingStats').innerHTML =
-      stat('package-check', 'blue', data.totalDeliveries, 'Entregas concluídas', 'Hoje') +
+      stat('package-check', 'blue', data.totalDeliveries, 'Entregas concluídas', 'Dia operacional') +
       stat('banknote', 'green', money(data.totalOrderValue), 'Valor total', 'Pedidos') +
       stat('coins', 'red', money(data.totalFees), 'Total em taxas', data.cancelledDeliveries ? 'Inclui canceladas' : 'Entregadores') +
-      stat('clock-3', 'orange', data.pending, 'Pendentes', 'Hoje');
+      stat('clock-3', 'orange', data.pending, 'Pendentes', 'Dia operacional');
 
     const payments = document.getElementById('closingPayments');
     if (payments) {
