@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v32`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v33`;
 
 const APP_SHELL = [
   './',
