@@ -526,7 +526,8 @@ function paymentTotals(items) {
 }
 
 function renderClosing() {
-  const today = todayDeliveries();
+  const closingDay = window.XBClosingContinuity?.activeDay?.() || dateKey();
+  const today = (db.deliveries || []).filter(item => dateKey(new Date(item.createdAt)) === closingDay);
   const done = delivered(today);
   const pending = today.filter(item => ['Aguardando', 'Em rota'].includes(item.status));
   const orders = done.reduce((sum, item) => sum + Number(item.orderValue || 0), 0);
@@ -550,16 +551,20 @@ function renderClosing() {
   }).filter(row => row.count);
   $('closingCouriers').innerHTML = rows.length ? `<div class="summary-list">${rows.map(row => `<div class="summary-row"><span>${esc(row.item.name)} · ${row.count} entrega${row.count === 1 ? '' : 's'}</span><b>${money(row.value)}</b></div>`).join('')}</div>` : empty('Sem entregas concluídas', 'Os valores aparecerão aqui.', 'bike');
 
-  const closing = db.closings.find(item => item.date === dateKey());
+  const closing = db.closings.find(item => item.date === closingDay);
   if (closing) {
-    $('closingBanner').innerHTML = `<div class="banner ok">${icon('badge-check')}<span>Dia finalizado em <b>${fmtDateTime(closing.closedAt)}</b>.</span></div>`;
+    $('closingBanner').innerHTML = `<div class="banner ok">${icon('badge-check')}<span>Dia ${closingDay.split('-').reverse().join('/')} finalizado em <b>${fmtDateTime(closing.closedAt)}</b>.</span></div>`;
     $('closeDayBtn').classList.add('hidden');
     $('reopenDayBtn').classList.remove('hidden');
   } else {
-    $('closingBanner').innerHTML = pending.length ? `<div class="banner warn">${icon('triangle-alert')}<span>Existem <b>${pending.length}</b> entregas pendentes. Confira antes de finalizar o dia.</span></div>` : '';
+    $('closingBanner').innerHTML = pending.length
+      ? `<div class="banner warn">${icon('triangle-alert')}<span>O dia <b>${closingDay.split('-').reverse().join('/')}</b> possui <b>${pending.length}</b> entrega${pending.length === 1 ? '' : 's'} pendente${pending.length === 1 ? '' : 's'}. Conclua ou cancele antes de finalizar.</span></div>`
+      : `<div class="banner warn">${icon('calendar-clock')}<span>O dia <b>${closingDay.split('-').reverse().join('/')}</b> ainda não foi finalizado.</span></div>`;
     $('closeDayBtn').classList.remove('hidden');
     $('reopenDayBtn').classList.add('hidden');
   }
+  $('closeDayBtn').innerHTML = `${icon('circle-check-big')}Finalizar dia ${closingDay.split('-').reverse().join('/')}`;
+  $('reopenDayBtn').innerHTML = `${icon('rotate-ccw')}Reabrir dia ${closingDay.split('-').reverse().join('/')}`;
 }
 
 $('closeDayBtn').addEventListener('click', () => {
