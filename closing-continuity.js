@@ -272,7 +272,7 @@
 
   function scheduleRecovery(delay = 120) {
     clearTimeout(recoveryTimer);
-    recoveryTimer = setTimeout(() => recoverPastCompleteDays(), delay);
+    recoveryTimer = setTimeout(() => scanOpenPastDays(), delay);
   }
 
   ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced'].forEach(name => window.addEventListener(name, () => scheduleRecovery()));
@@ -287,7 +287,7 @@
   setTimeout(() => scanOpenPastDays(), 3200);
 
   window.XBClosingContinuity = Object.freeze({
-    recover: recoverPastCompleteDays,
+    recover: scanOpenPastDays,
     buildDetails,
     expectedSnapshot,
     needsRepair,
