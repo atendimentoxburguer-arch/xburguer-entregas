@@ -13,13 +13,16 @@
     });
   }
 
-  function pastPendingRows() {
+  function pastOpenRows() {
     const today = dayKey();
+    const openDays = new Set(window.XBClosingContinuity?.pastOpenDays?.() || []);
     return (db.deliveries || [])
-      .filter(item => isPending(item) && dayKey(item?.createdAt) && dayKey(item.createdAt) < today)
+      .filter(item => {
+        const key = dayKey(item?.createdAt);
+        return key && key < today && openDays.has(key);
+      })
       .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
   }
-
   function groupRows(rows) {
     const groups = new Map();
     rows.forEach(item => {
@@ -50,15 +53,18 @@
 
   function alertHtml(rows, compact = false) {
     const groups = groupRows(rows);
-    const dates = groups.map(([key, items]) => `${formatDay(key)}: ${items.length} pendente${items.length === 1 ? '' : 's'}`).join(' · ');
+    const dates = groups.map(([key, items]) => {
+      const pending = items.filter(isPending).length;
+      return `${formatDay(key)}: ${items.length} registro${items.length === 1 ? '' : 's'} em aberto${pending ? ` (${pending} pendente${pending === 1 ? '' : 's'})` : ''}`;
+    }).join(' · ');
     const codes = rows.slice(0, 8).map(item => `#${String(item.code || '').padStart(3, '0')}`).join(', ');
     const extra = rows.length > 8 ? ` e mais ${rows.length - 8}` : '';
     return `
       <div class="xb-past-pending-copy">
         ${typeof icon === 'function' ? icon('triangle-alert') : ''}
         <div>
-          <strong>${rows.length === 1 ? 'Existe uma entrega pendente de um dia anterior' : 'Existem entregas pendentes de dias anteriores'}</strong>
-          <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Esses dias não podem ser fechados até que cada pedido seja concluído ou cancelado.</span>
+          <strong>${rows.length === 1 ? 'Existe um registro de um dia anterior ainda aberto' : 'Existem registros de dias anteriores ainda abertos'}</strong>
+          <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Os registros permanecem disponíveis até você finalizar cada dia.</span>
         </div>
       </div>
       ${compact ? '' : '<button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver pendências</button>'}
@@ -82,7 +88,7 @@
 
   function refresh() {
     ensureStyles();
-    const rows = pastPendingRows();
+    const rows = pastOpenRows();
     ensureAlert('xbPastPendingClosingAlert', document.getElementById('closingBanner'), rows, false);
     ensureAlert('xbPastPendingDashboardAlert', document.getElementById('dashboardStats'), rows, true);
     if (rows.length) {
@@ -100,7 +106,7 @@
     const date = document.getElementById('dateFilter');
     const status = document.getElementById('statusFilter');
     if (date) date.value = 'all';
-    if (status) status.value = 'Aguardando';
+    if (status) status.value = '';
     if (typeof go === 'function') go('deliveries');
     if (typeof renderDeliveries === 'function') renderDeliveries();
   });
@@ -114,6 +120,7 @@
 
   window.XBPastDayGuard = Object.freeze({
     refresh,
-    get pending() { return pastPendingRows(); }
+    get pending() { return pastOpenRows(); },
+    get openDays() { return window.XBClosingContinuity?.pastOpenDays?.() || []; }
   });
 })();
