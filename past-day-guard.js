@@ -67,7 +67,7 @@
           <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Os registros permanecem disponíveis até você finalizar cada dia.</span>
         </div>
       </div>
-      ${compact ? '' : '<button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver pendências</button>'}
+      ${compact ? '' : '<button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver dias em aberto</button>'}
     `;
   }
 
@@ -111,7 +111,7 @@
     if (typeof renderDeliveries === 'function') renderDeliveries();
   });
 
-  ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved', 'xb:closing-continuity-recovered', 'xb:enhancements-ready'].forEach(name => {
+  ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved', 'xb:closing-continuity-recovered', 'xb:open-past-days-detected', 'xb:enhancements-ready'].forEach(name => {
     window.addEventListener(name, () => queueMicrotask(refresh));
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
