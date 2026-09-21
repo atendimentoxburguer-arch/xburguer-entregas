@@ -65,6 +65,8 @@ assert(metrics.includes('openOperationalDayKeys'), 'Métricas precisam conhecer 
 assert(metrics.includes("range === 'today'"), 'Filtro padrão precisa tratar a continuidade do dia');
 assert(closingContinuity.includes('function activeDay()'), 'Fechamento precisa selecionar o dia operacional ainda aberto');
 assert(!closingContinuity.includes('recoverPastCompleteDays'), 'O sistema não pode finalizar dias automaticamente');
+assert(closingContinuity.includes("rpc('xb_finalize_day_explicit'"), 'Finalização deve exigir ação explícita no novo RPC');
+assert(!closingContinuity.includes("rpc('xb_finalize_day',"), 'O fluxo da interface não pode chamar o RPC legado de finalização');
 assert(pastDayGuard.includes('pastOpenRows'), 'O alerta precisa reconhecer dias anteriores ainda abertos');
 const legacyUpdate = fs.readFileSync('system-update.js', 'utf8');
 const legacyHardening = fs.readFileSync('production-hardening.js', 'utf8');
