@@ -39,11 +39,28 @@
     return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
   }
 
+  function openOperationalDayKeys() {
+    const today = dayKey();
+    const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
+    const keys = new Set([today]);
+    (db.deliveries || []).forEach(item => {
+      const key = dayKey(item?.createdAt);
+      if (key && key < today && !closed.has(key)) keys.add(key);
+    });
+    return keys;
+  }
+
   function filterRangeSafe(items, range = 'all') {
     const list = Array.isArray(items) ? items : [];
     if (range === 'all' || range === '' || range == null) return [...list];
     const today = dayKey();
-    if (range === 'today') return list.filter(item => dayKey(item?.createdAt) === today);
+    if (range === 'today') {
+      const openDays = openOperationalDayKeys();
+      return list.filter(item => {
+        const key = dayKey(item?.createdAt);
+        return key === today || openDays.has(key);
+      });
+    }
     const days = Math.max(1, Math.floor(numberValue(range) || 1));
     const start = addDaysKey(today, -(days - 1));
     return list.filter(item => {
@@ -473,6 +490,7 @@
     dayKey,
     addDaysKey,
     filterRange: filterRangeSafe,
+    openOperationalDayKeys,
     forDay,
     sumMoney,
     averageMoney,
