@@ -85,6 +85,18 @@ assert.deepStrictEqual(
   ['first', 'middle', 'last'],
   'Últimos 7 dias devem incluir exatamente sete dias de calendário'
 );
+// Um dia anterior continua visível enquanto não existir fechamento explícito.
+context.db.deliveries = [
+  { id: 'open-old', createdAt: '2026-09-11T15:00:00Z' },
+  { id: 'today', createdAt: '2026-09-12T15:00:00Z' },
+  { id: 'closed-old', createdAt: '2026-09-10T15:00:00Z' }
+];
+context.db.closings = [{ date: '2026-09-10' }];
+assert.deepStrictEqual(
+  M.filterRange(context.db.deliveries, 'today').map(item => item.id),
+  ['open-old', 'today'],
+  'O filtro padrão não pode esconder um dia anterior ainda não finalizado'
+);
 context.Date = RealDate;
 
 // Soma monetária em centavos: não pode acumular resíduos de ponto flutuante.
