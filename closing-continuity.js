@@ -188,11 +188,11 @@
     event.stopImmediatePropagation();
     if (busy) return;
 
-    const key = dayKey(new Date());
+    const key = activeDay();
     if ((db.closings || []).some(item => item?.date === key)) return;
     const rows = rowsForDay(key);
     const pending = rows.filter(isPending).length;
-    if (!rows.length) return toast('Não há entregas registradas para finalizar hoje.', 'error');
+    if (!rows.length) return toast('Não há entregas registradas para finalizar o dia ' + key.split('-').reverse().join('/') + '.', 'error');
     if (pending) {
       return toast(`Existem ${pending} entrega${pending === 1 ? '' : 's'} pendente${pending === 1 ? '' : 's'}. Conclua ou cancele antes de fechar o dia.`, 'error');
     }
@@ -217,8 +217,9 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     if (busy) return;
-    const key = dayKey(new Date());
-    if (!window.confirm('Deseja reabrir o fechamento de hoje?')) return;
+    const key = activeDay();
+    const label = key.split('-').reverse().join('/');
+    if (!window.confirm('Deseja reabrir o fechamento do dia ' + label + '?')) return;
 
     busy = true;
     const button = event.currentTarget;
@@ -236,49 +237,34 @@
     }
   }
 
-  async function recoverPastCompleteDays() {
-    if (busy || window.__xbApplyingRemoteSnapshot || !Array.isArray(db?.deliveries) || !Array.isArray(db?.closings) || !cloudAvailable()) return [];
-    busy = true;
-    try {
-      await flushBeforeClosing();
-      const today = dayKey(new Date());
-      const groups = new Map();
-      db.deliveries.forEach(item => {
-        const key = dayKey(item?.createdAt);
-        if (!key || key >= today) return;
-        const list = groups.get(key) || [];
-        list.push(item);
-        groups.set(key, list);
-      });
-
-      const repaired = [];
-      for (const [key, rows] of groups.entries()) {
-        if (!rows.length || rows.some(isPending) || !rows.some(isFinal)) continue;
-        const existing = db.closings.find(item => item?.date === key);
-        // Um fechamento internamente íntegro é histórico imutável. Só recompomos
-        // quando ele não existe ou o próprio registro salvo está incompleto.
-        if (existing && !needsRepair(existing)) continue;
-        const { error } = await window.XBCloud.client.rpc('xb_finalize_day', {
-          p_date: key,
-          p_allow_pending: false
-        });
-        if (error) throw error;
-        repaired.push(key);
-      }
-
-      if (repaired.length && window.XBCloud?.pullNow) {
-        await window.XBCloud.pullNow();
-        window.dispatchEvent(new CustomEvent('xb:closing-continuity-recovered', { detail: { dates: repaired } }));
-      }
-      return repaired;
-    } catch (error) {
-      console.error('[X-Burguer] Falha na verificação automática dos fechamentos:', error);
-      return [];
-    } finally {
-      busy = false;
-    }
+  function openOperationalDays() {
+    const today = dayKey(new Date());
+    const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
+    const days = new Set();
+    (db.deliveries || []).forEach(item => {
+      const key = dayKey(item?.createdAt);
+      if (key && key <= today && !closed.has(key)) days.add(key);
+    });
+    return [...days].sort();
   }
 
+  function activeDay() {
+    const open = openOperationalDays();
+    return open[0] || dayKey(new Date());
+  }
+
+  function pastOpenDays() {
+    const today = dayKey(new Date());
+    return openOperationalDays().filter(key => key < today);
+  }
+
+  function scanOpenPastDays() {
+    const dates = pastOpenDays();
+    if (dates.length) {
+      window.dispatchEvent(new CustomEvent('xb:open-past-days-detected', { detail: { dates } }));
+    }
+    return dates;
+  }
   const closeButton = document.getElementById('closeDayBtn');
   const reopenButton = document.getElementById('reopenDayBtn');
   closeButton?.addEventListener('click', handleClose, { capture: true });
@@ -295,10 +281,10 @@
   document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRecovery(); });
 
   setInterval(() => {
-    if (!document.hidden) recoverPastCompleteDays();
+    if (!document.hidden) scanOpenPastDays();
   }, 15 * 60 * 1000);
 
-  setTimeout(() => scheduleRecovery(0), 3200);
+  setTimeout(() => scanOpenPastDays(), 3200);
 
   window.XBClosingContinuity = Object.freeze({
     recover: recoverPastCompleteDays,
@@ -306,6 +292,10 @@
     expectedSnapshot,
     needsRepair,
     finalizeDay: finalizeRemote,
-    reopenDay: reopenRemote
+    reopenDay: reopenRemote,
+    activeDay,
+    openOperationalDays,
+    pastOpenDays,
+    scanOpenPastDays
   });
 })();
