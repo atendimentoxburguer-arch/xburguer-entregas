@@ -277,6 +277,9 @@ syncPaymentFields();
 
 // NEW DELIVERY
 $('deliveryForm').addEventListener('submit', event => {
+  // Com Supabase ativo, atomic-delivery-code.js é o único criador de entregas.
+  // Evita que o listener legado grave uma segunda entrega local antes da RPC autoritativa.
+  if (window.XB_SUPABASE_CONFIG?.enabled) return;
   event.preventDefault();
   const item = {
     id: uid('delivery'),
@@ -376,7 +379,7 @@ function renderDeliveries() {
   refreshIcons();
 }
 
-$('deliveriesTable').addEventListener('click', event => {
+$('deliveriesTable').addEventListener('click', async event => {
   const button = event.target.closest('[data-delivery-action]');
   if (!button) return;
   const item = db.deliveries.find(delivery => delivery.id === button.dataset.id);
@@ -400,7 +403,24 @@ $('deliveriesTable').addEventListener('click', event => {
     renderAll();
   }
   if (action === 'delete') {
-    if (!confirm('Excluir definitivamente esta entrega?')) return;
+    const message = window.XB_SUPABASE_CONFIG?.enabled
+      ? `Enviar a entrega #${String(item.code).padStart(3, '0')} para a lixeira? Ela poderá ser recuperada.`
+      : 'Excluir definitivamente esta entrega?';
+    if (!confirm(message)) return;
+
+    if (window.XB_SUPABASE_CONFIG?.enabled) {
+      try {
+        if (!window.XBCloud?.deleteDelivery) throw new Error('Banco online indisponível.');
+        const result = await window.XBCloud.deleteDelivery(item.id);
+        toast(result?.recoverable ? 'Entrega enviada para a lixeira e preservada para recuperação.' : 'Entrega excluída.');
+        renderAll();
+      } catch (error) {
+        console.error('[X-Burguer] Falha ao excluir entrega:', error);
+        toast(String(error?.message || 'Não foi possível excluir a entrega com segurança.'), 'error');
+      }
+      return;
+    }
+
     db.deliveries = db.deliveries.filter(delivery => delivery.id !== item.id);
     save();
     toast('Entrega excluída.');
