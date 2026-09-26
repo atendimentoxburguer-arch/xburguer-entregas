@@ -58,6 +58,16 @@ assert(manifestIconVersions.length > 0, 'Manifest deve versionar os ícones');
 manifestIconVersions.forEach(version => assert.strictEqual(version, appVersion, 'Manifest usa versão diferente do carregador principal'));
 
 assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa usar RPC atômico do banco');
+const atomic = fs.readFileSync('atomic-delivery-code.js', 'utf8');
+const cloud = fs.readFileSync('database-cloud-v2.js', 'utf8');
+const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
+const recovery = fs.readFileSync('delivery-recovery.js', 'utf8');
+const coreSource = fs.readFileSync('app-core.js', 'utf8');
+assert(atomic.includes("rpc('xb_create_delivery'"), 'Nova entrega deve ser criada atomicamente no banco');
+assert(coreSource.includes('if (window.XB_SUPABASE_CONFIG?.enabled) return;'), 'Handler legado de nova entrega não pode duplicar o cadastro online');
+assert(cloud.includes('business_date: item.businessDate || null'), 'Sincronização deve preservar o dia comercial');
+assert(metrics.includes('function businessDayKey(item)'), 'Métricas devem ter uma fonte única de dia comercial');
+assert(recovery.includes("xb_restore_deleted_delivery"), 'Lixeira precisa permitir recuperação pelo banco');
 assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
 assert(cloud.includes("rpc('xb_delete_delivery'"), 'Exclusão de entrega precisa ser autoritativa no banco');
 assert(cloud.includes("delivery_tombstones"), 'Sincronização precisa reconhecer tombstones de entregas excluídas');
