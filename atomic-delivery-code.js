@@ -44,6 +44,30 @@
     return code;
   }
 
+  async function waitForDeliveryInCloud(cloud, item, timeoutMs = 7000) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      try {
+        const sent = await cloud.syncNow?.();
+        if (sent !== false && Number(cloud.pendingChanges || 0) === 0) {
+          const { data: remote, error } = await cloud.client
+            .from('deliveries')
+            .select('id,code')
+            .eq('user_id', (await cloud.client.auth.getUser()).data?.user?.id || '')
+            .eq('id', item.id)
+            .maybeSingle();
+          if (!error && remote?.id === item.id && Number(remote.code) === Number(item.code)) {
+            return true;
+          }
+        }
+      } catch (error) {
+        console.warn('[X-Burguer] Conferência da nova entrega:', error);
+      }
+      await sleep(250);
+    }
+    return false;
+  }
+
   function resetDeliveryForm(target) {
     target.reset();
     const reference = document.getElementById('deliveryReference');
@@ -103,13 +127,23 @@
       db.settings.nextDeliveryCode = Math.max(Number(db.settings.nextDeliveryCode || 1), code + 1);
       save();
 
+      // A entrega só é liberada para a próxima etapa depois de confirmada no
+      // Supabase. Se a rede falhar, o registro continua local e na fila; nunca
+      // fazemos um pull que possa fazê-lo desaparecer da tela.
+      const synced = await waitForDeliveryInCloud(await waitForCloud(), item);
+      if (!synced) {
+        notify(`Entrega #${String(code).padStart(3, '0')} foi cadastrada, mas ainda está aguardando confirmação do banco. Ela permanece salva e será sincronizada automaticamente.`, 'error');
+      }
+
       window.XBProduction?.clearDraft?.();
       window.dispatchEvent(new CustomEvent('xb:delivery-created', {
-        detail: { id: item.id, code: item.code, createdAt: item.createdAt }
+        detail: { id: item.id, code: item.code, createdAt: item.createdAt, synced }
       }));
 
       resetDeliveryForm(event.target);
-      notify(`Entrega #${String(code).padStart(3, '0')} cadastrada.`);
+      notify(synced
+        ? `Entrega #${String(code).padStart(3, '0')} cadastrada e confirmada no banco.`
+        : `Entrega #${String(code).padStart(3, '0')} cadastrada e mantida na fila de sincronização.`);
       if (typeof go === 'function') go('deliveries');
     } catch (error) {
       console.error('[X-Burguer] Falha ao reservar número do pedido:', error);
