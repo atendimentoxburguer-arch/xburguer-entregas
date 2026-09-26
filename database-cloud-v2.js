@@ -652,7 +652,8 @@
         ...(settingsRow ? {
           storeName: settingsRow.store_name,
           defaultFee: Number(settingsRow.default_fee || 0),
-          nextDeliveryCode: Number(settingsRow.next_delivery_code || 1)
+          nextDeliveryCode: Number(settingsRow.next_delivery_code || 1),
+          activeBusinessDate: settingsRow.active_business_date || ''
         } : {}),
         password: ''
       },
