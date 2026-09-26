@@ -18,7 +18,7 @@
     const openDays = new Set(window.XBClosingContinuity?.pastOpenDays?.() || []);
     return (db.deliveries || [])
       .filter(item => {
-        const key = dayKey(item?.createdAt);
+        const key = String(item?.businessDate || dayKey(item?.createdAt));
         return key && key < today && openDays.has(key);
       })
       .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
