@@ -13,6 +13,7 @@ const core = fs.readFileSync('app-core.js', 'utf8');
 const production = fs.readFileSync('system-production-v2.js', 'utf8');
 const deliveryCreation = fs.readFileSync('atomic-delivery-code.js', 'utf8');
 const cloud = fs.readFileSync('database-cloud-v2.js', 'utf8');
+const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
 const databasePrep = fs.readFileSync('database-prep.js', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
 
