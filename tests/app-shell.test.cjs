@@ -62,6 +62,7 @@ assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa 
 assert(cloud.includes("rpc('xb_delete_delivery'"), 'Exclusão de entrega precisa ser autoritativa no banco');
 assert(cloud.includes("delivery_tombstones"), 'Sincronização precisa reconhecer tombstones de entregas excluídas');
 assert(cloud.includes('deleteDelivery: id => deleteDeliveryAuthoritatively(id)'), 'XBCloud precisa expor exclusão autoritativa');
+assert(cloud.includes('remoteUpdatedAt'), 'Sincronização precisa comparar a versão remota antes de sobrescrever entregas');
 const closing = fs.readFileSync('closing-continuity.js', 'utf8');
 assert(index.includes('id="closingDaySelect"'), 'Fechamento precisa permitir escolher explicitamente o dia');
 assert(closing.includes('function selectableClosingDays()'), 'Fechamento precisa manter os dias abertos selecionáveis');
