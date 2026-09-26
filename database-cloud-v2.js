@@ -514,16 +514,45 @@
     };
   }
 
+  // O Data API do Supabase pagina respostas em até 1.000 linhas por padrão.
+  // Sem paginação, ao passar de 1.000 entregas o pull trazia apenas os registros
+  // mais antigos e podia fazer as entregas recém-cadastradas "sumirem" da tela.
+  async function fetchAllRemoteRows(table, orderBy = []) {
+    const PAGE_SIZE = 500;
+    const MAX_ROWS = 100000;
+    const rows = [];
+
+    for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
+      let query = client
+        .from(table)
+        .select('*')
+        .eq('user_id', currentUser.id);
+
+      for (const column of orderBy) {
+        query = query.order(column, { ascending: true });
+      }
+
+      const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+
+      const page = Array.isArray(data) ? data : [];
+      rows.push(...page);
+
+      if (page.length < PAGE_SIZE) return rows;
+    }
+
+    throw new Error(`Limite de segurança atingido ao carregar ${table}. A sincronização foi interrompida para evitar perda visual de dados.`);
+  }
+
   async function fetchRemoteSnapshot() {
-    const [settingsResult, couriersResult, deliveriesResult, closingsResult] = await Promise.all([
+    const [settingsResult, couriersRows, deliveriesRows, closingsRows] = await Promise.all([
       client.from('app_settings').select('*').eq('user_id', currentUser.id).maybeSingle(),
-      client.from('couriers').select('*').eq('user_id', currentUser.id).order('name'),
-      client.from('deliveries').select('*').eq('user_id', currentUser.id).order('created_at'),
-      client.from('daily_closings').select('*').eq('user_id', currentUser.id).order('date')
+      fetchAllRemoteRows('couriers', ['name', 'id']),
+      fetchAllRemoteRows('deliveries', ['created_at', 'id']),
+      fetchAllRemoteRows('daily_closings', ['date'])
     ]);
 
-    const firstError = [settingsResult, couriersResult, deliveriesResult, closingsResult].find(result => result.error)?.error;
-    if (firstError) throw firstError;
+    if (settingsResult.error) throw settingsResult.error;
 
     const settingsRow = settingsResult.data;
     const snapshot = {
@@ -536,9 +565,9 @@
         } : {}),
         password: ''
       },
-      couriers: (couriersResult.data || []).map(rowToCourier),
-      deliveries: (deliveriesResult.data || []).map(rowToDelivery),
-      closings: (closingsResult.data || []).map(rowToClosing)
+      couriers: couriersRows.map(rowToCourier),
+      deliveries: deliveriesRows.map(rowToDelivery),
+      closings: closingsRows.map(rowToClosing)
     };
 
     return {
