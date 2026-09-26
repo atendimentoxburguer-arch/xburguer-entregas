@@ -25,6 +25,7 @@ assert(appFiles.includes('metrics-consistency-v4.js'), 'Métricas consistentes p
 assert(appFiles.includes('closing-continuity.js'), 'Proteção do fechamento precisa estar no app.js');
 assert(appFiles.includes('final-integrity-guards.js'), 'Barreira final de integridade precisa estar no app.js');
 assert(appFiles.includes('past-day-guard.js'), 'Pendências de dias anteriores precisam ser sinalizadas');
+assert(appFiles.includes('delivery-recovery.js'), 'Lixeira e recuperação precisam estar no app.js');
 
 const metricsPosition = app.indexOf("'metrics-consistency-v4.js'");
 const businessRulesPosition = app.indexOf("'business-rules-v2.js'");
@@ -59,8 +60,6 @@ manifestIconVersions.forEach(version => assert.strictEqual(version, appVersion, 
 
 assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa usar RPC atômico do banco');
 const atomic = fs.readFileSync('atomic-delivery-code.js', 'utf8');
-const cloud = fs.readFileSync('database-cloud-v2.js', 'utf8');
-const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
 const recovery = fs.readFileSync('delivery-recovery.js', 'utf8');
 const coreSource = fs.readFileSync('app-core.js', 'utf8');
 assert(atomic.includes("rpc('xb_create_delivery'"), 'Nova entrega deve ser criada atomicamente no banco');
@@ -80,16 +79,15 @@ assert(!closing.includes('return open[0] || dateKey(new Date());'), 'Fechamento 
 
 assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
 assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
-assert(deliveryCreation.includes('waitForDeliveryInCloud'), 'Nova entrega precisa de confirmação de persistência no banco');
-assert(deliveryCreation.includes(".from('deliveries')"), 'Nova entrega precisa ser conferida diretamente no banco');
-assert(cloud.includes('localMutationNeedsReconciliation'), 'Pull remoto precisa proteger uma gravação local recente');
+assert(deliveryCreation.includes("rpc('xb_create_delivery'"), 'Nova entrega precisa ser criada por RPC atômico no banco');
+assert(deliveryCreation.includes('businessDate'), 'Nova entrega precisa receber o dia comercial do banco');
+assert(cloud.includes('lastLocalMutationAt'), 'Persistência precisa registrar a última mutação local');
 assert(cloud.includes('protecao-pos-gravacao'), 'Reconciliação de gravação local precisa ocorrer antes do pull');
 assert(cloud.includes('fetchAllRemoteRows'), 'Leitura da nuvem precisa suportar mais de 1.000 registros');
 assert(cloud.includes('.range(from, from + PAGE_SIZE - 1)'), 'Leitura paginada precisa usar range por páginas');
 assert(cloud.includes("fetchAllRemoteRows('deliveries'"), 'Entregas precisam ser carregadas por paginação');
 
 assert(databasePrep.includes('applyingRemote'), 'Persistência local deve distinguir sincronização remota de alteração local');
-const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
 const closingContinuity = fs.readFileSync('closing-continuity.js', 'utf8');
 const pastDayGuard = fs.readFileSync('past-day-guard.js', 'utf8');
 assert(metrics.includes('openOperationalDayKeys'), 'Métricas precisam conhecer dias ainda abertos');
