@@ -26,22 +26,49 @@
     return null;
   }
 
-  async function reserveDeliveryCode() {
-    if (!navigator.onLine) throw new Error('OFFLINE_CODE_RESERVATION');
+  async function createDeliveryAuthoritatively(payload) {
+    if (!navigator.onLine) throw new Error('Conecte à internet para cadastrar a entrega com segurança.');
 
     const cloud = await waitForCloud();
-    if (!cloud?.client) throw new Error('CLOUD_NOT_READY');
+    if (!cloud?.client) throw new Error('Banco online indisponível.');
 
     const { data: sessionData, error: sessionError } = await cloud.client.auth.getSession();
     if (sessionError) throw sessionError;
     if (!sessionData?.session?.user) throw new Error('AUTH_REQUIRED');
 
-    const { data, error } = await cloud.client.rpc('xb_next_delivery_code');
+    const { data, error } = await cloud.client.rpc('xb_create_delivery', {
+      p_id: payload.id,
+      p_client: payload.client,
+      p_phone: payload.phone,
+      p_address: payload.address,
+      p_reference: payload.reference || '',
+      p_courier_id: payload.courierId,
+      p_order_value: payload.orderValue,
+      p_payment: payload.payment,
+      p_change_for: payload.changeFor === '' ? null : payload.changeFor,
+      p_notes: payload.notes
+    });
     if (error) throw error;
-
-    const code = Number(data);
-    if (!Number.isInteger(code) || code <= 0) throw new Error('INVALID_RESERVED_CODE');
-    return code;
+    if (!data?.id || !Number(data.code)) throw new Error('O banco não confirmou a nova entrega.');
+    return {
+      id: data.id,
+      code: Number(data.code),
+      client: data.client || '',
+      phone: data.phone || '',
+      address: data.address || '',
+      reference: data.reference || '',
+      courierId: data.courierId || null,
+      fee: Number(data.fee || 0),
+      orderValue: Number(data.orderValue || 0),
+      payment: data.payment || 'Dinheiro',
+      changeFor: data.changeFor === null || data.changeFor === undefined ? '' : Number(data.changeFor),
+      notes: data.notes || '',
+      status: data.status || 'Aguardando',
+      paymentConfirmedAt: data.paymentConfirmedAt || '',
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt || data.createdAt,
+      businessDate: data.businessDate || ''
+    };
   }
 
   async function waitForDeliveryInCloud(cloud, item, timeoutMs = 7000) {
@@ -98,52 +125,34 @@
     }
 
     try {
-      const code = await reserveDeliveryCode();
-      const now = new Date().toISOString();
       const payment = document.querySelector('input[name="payment"]:checked')?.value || 'Dinheiro';
-      const item = {
+      const draft = {
         id: uid('delivery'),
-        code,
         client: document.getElementById('deliveryClient').value.trim(),
         phone: document.getElementById('deliveryPhone').value.trim(),
         address: document.getElementById('deliveryAddress').value.trim(),
         reference: '',
         courierId: document.getElementById('deliveryCourier').value || null,
-        fee: Number(document.getElementById('deliveryFee').value || 0),
         orderValue: Number(document.getElementById('deliveryValue').value || 0),
         payment,
         changeFor: document.getElementById('deliveryChange').value
           ? Number(document.getElementById('deliveryChange').value)
           : '',
-        notes: document.getElementById('deliveryNotes').value.trim(),
-        status: 'Aguardando',
-        createdAt: now,
-        updatedAt: now,
-        // "Pago online" já nasce quitado; o pedido continua aguardando somente a entrega.
-        paymentConfirmedAt: payment === 'Pago online' ? now : ''
+        notes: document.getElementById('deliveryNotes').value.trim()
       };
 
+      const item = await createDeliveryAuthoritatively(draft);
       db.deliveries.push(item);
-      db.settings.nextDeliveryCode = Math.max(Number(db.settings.nextDeliveryCode || 1), code + 1);
+      db.settings.nextDeliveryCode = Math.max(Number(db.settings.nextDeliveryCode || 1), item.code + 1);
       save();
-
-      // A entrega só é liberada para a próxima etapa depois de confirmada no
-      // Supabase. Se a rede falhar, o registro continua local e na fila; nunca
-      // fazemos um pull que possa fazê-lo desaparecer da tela.
-      const synced = await waitForDeliveryInCloud(await waitForCloud(), item);
-      if (!synced) {
-        notify(`Entrega #${String(code).padStart(3, '0')} foi cadastrada, mas ainda está aguardando confirmação do banco. Ela permanece salva e será sincronizada automaticamente.`, 'error');
-      }
 
       window.XBProduction?.clearDraft?.();
       window.dispatchEvent(new CustomEvent('xb:delivery-created', {
-        detail: { id: item.id, code: item.code, createdAt: item.createdAt, synced }
+        detail: { id: item.id, code: item.code, createdAt: item.createdAt, businessDate: item.businessDate, synced: true }
       }));
 
       resetDeliveryForm(event.target);
-      notify(synced
-        ? `Entrega #${String(code).padStart(3, '0')} cadastrada e confirmada no banco.`
-        : `Entrega #${String(code).padStart(3, '0')} cadastrada e mantida na fila de sincronização.`);
+      notify(`Entrega #${String(item.code).padStart(3, '0')} cadastrada e confirmada no banco. Dia comercial: ${String(item.businessDate || '').split('-').reverse().join('/') || 'atual'}.`);
       if (typeof go === 'function') go('deliveries');
     } catch (error) {
       console.error('[X-Burguer] Falha ao reservar número do pedido:', error);
