@@ -199,6 +199,13 @@
 
         <section class="page" id="page-closing">
           <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="clipboard-check"></i>CONFERÊNCIA</div><h1>Fechamento do dia</h1><p>Confira pedidos, taxas, pagamentos e pendências antes de finalizar.</p></div></div>
+          <div class="closing-day-picker" id="closingDayPicker">
+            <div>
+              <div class="closing-day-label">DIA EM CONFERÊNCIA</div>
+              <div class="closing-day-help" id="closingDayHelp">Os dias anteriores permanecem abertos até você finalizar.</div>
+            </div>
+            <select id="closingDaySelect" aria-label="Selecionar dia do fechamento"></select>
+          </div>
           <div id="closingBanner"></div>
           <div class="stats" id="closingStats"></div>
           <div class="grid-2"><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="wallet-cards"></i></div><div><h3>Formas de pagamento</h3><p>Valores das entregas concluídas</p></div></div></div><div class="card-body" id="closingPayments"></div></div><div class="card"><div class="card-head"><div class="card-title-row"><div class="card-title-icon"><i data-lucide="bike"></i></div><div><h3>Entregadores</h3><p>Taxas do dia por entregador</p></div></div></div><div class="card-body" id="closingCouriers"></div></div></div>
