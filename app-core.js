@@ -102,9 +102,13 @@ function cleanLegacyChangeNote(notes) {
 
 function courier(id) { return db.couriers.find(item => item.id === id); }
 function todayDeliveries() {
-  const today = window.XBMetrics?.dayKey?.() || dateKey();
+  const today = window.XBMetrics?.activeOperationalDayKey?.()
+    || window.XBClosingContinuity?.activeDay?.()
+    || String(db.settings?.activeBusinessDate || '')
+    || window.XBMetrics?.dayKey?.()
+    || dateKey();
   if (window.XBMetrics?.forDay) return window.XBMetrics.forDay(db.deliveries || [], today);
-  return db.deliveries.filter(item => dateKey(new Date(item.createdAt)) === today);
+  return db.deliveries.filter(item => String(item.businessDate || dateKey(new Date(item.createdAt))) === today);
 }
 function delivered(list) { return list.filter(item => item.status === 'Entregue'); }
 function nextCode() {
