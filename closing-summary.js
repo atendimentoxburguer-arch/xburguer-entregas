@@ -13,7 +13,7 @@
 
   function buildLiveClosingDetails() {
     const key = window.XBClosingContinuity?.activeDay?.() || dateKey();
-    const today = (db.deliveries || []).filter(item => (window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item?.createdAt))) === key);
+    const today = (db.deliveries || []).filter(item => String(item?.businessDate || (window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item?.createdAt)))) === key);
     const done = delivered(today);
     const cancelled = today.filter(item => item.status === 'Cancelada');
     const feeRows = today.filter(item => item.status === 'Entregue' || item.status === 'Cancelada');
