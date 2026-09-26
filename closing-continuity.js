@@ -300,11 +300,12 @@
   }
 
   function activeDay() {
-    const today = dayKey(new Date());
-    const open = openOperationalDays().filter(key => key <= today).sort();
-    if (open.length) return open[0];
-    const configured = String(db.settings?.activeBusinessDate || '');
-    return configured || today;
+    syncDaySelector();
+    const select = document.getElementById('closingDaySelect');
+    const days = selectableClosingDays();
+    return select?.value && days.includes(select.value)
+      ? select.value
+      : dayKey(new Date());
   }
 
   function pastOpenDays() {
