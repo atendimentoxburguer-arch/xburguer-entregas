@@ -39,13 +39,14 @@
       status: item.status || 'Entregue',
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
-      paymentConfirmedAt: item.paymentConfirmedAt || ''
+      paymentConfirmedAt: item.paymentConfirmedAt || '',
+      businessDate: item.businessDate || ''
     };
   }
 
   function finalForDate(key) {
     return db.deliveries
-      .filter(item => ['Entregue', 'Cancelada'].includes(item.status) && dayKey(item.createdAt) === key)
+      .filter(item => ['Entregue', 'Cancelada'].includes(item.status) && String(item.businessDate || dayKey(item.createdAt)) === key)
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt) || Number(a.code || 0) - Number(b.code || 0));
   }
 
