@@ -248,9 +248,63 @@
     return [...days].sort();
   }
 
+  function selectableClosingDays() {
+    const today = dayKey(new Date());
+    const days = new Set(openOperationalDays());
+    (db.closings || []).forEach(item => {
+      const key = String(item?.date || '');
+      if (key && key <= today) days.add(key);
+    });
+    return [...days].sort().reverse();
+  }
+
+  function syncDaySelector() {
+    const select = document.getElementById('closingDaySelect');
+    if (!select) return;
+
+    const today = dayKey(new Date());
+    const open = new Set(openOperationalDays());
+    const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
+    const days = selectableClosingDays();
+    const current = String(select.value || '');
+    const preferred = days.includes(current)
+      ? current
+      : (open.has(today) ? today : (days[0] || today));
+
+    const signature = days.map(key => `${key}:${closed.has(key) ? 'closed' : 'open'}`).join('|');
+    if (select.dataset.xbOptions !== signature) {
+      select.innerHTML = days.length
+        ? days.map(key => {
+            const label = key.split('-').reverse().join('/');
+            const status = closed.has(key) ? ' • finalizado' : (key === today ? ' • hoje' : ' • aberto');
+            return `<option value="${key}">${label}${status}</option>`;
+          }).join('')
+        : `<option value="${today}">${today.split('-').reverse().join('/')} • hoje</option>`;
+      select.dataset.xbOptions = signature;
+    }
+
+    select.value = preferred;
+    const help = document.getElementById('closingDayHelp');
+    const pastOpen = [...open].filter(key => key < today);
+    if (help) {
+      help.textContent = pastOpen.length
+        ? `${pastOpen.length} dia(s) anterior(es) ainda aberto(s). Eles não são finalizados automaticamente.`
+        : 'Os dias anteriores permanecem abertos até você finalizar.';
+    }
+
+    if (select.dataset.xbBound !== '1') {
+      select.dataset.xbBound = '1';
+      select.addEventListener('change', () => renderAfterChange());
+    }
+  }
+
   function activeDay() {
-    const open = openOperationalDays();
-    return open[0] || dayKey(new Date());
+    syncDaySelector();
+    const select = document.getElementById('closingDaySelect');
+    const days = selectableClosingDays();
+    return select?.value && days.includes(select.value)
+      ? select.value
+      : dayKey(new Date());
   }
 
   function pastOpenDays() {
