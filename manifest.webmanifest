@@ -14,13 +14,13 @@
   "categories": ["business", "productivity"],
   "icons": [
     {
-      "src": "./assets/app-icon-192.png?v=20260926-delivery-sync-v5",
+      "src": "./assets/app-icon-192.png?v=20260926-delivery-safe-v6",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./assets/app-icon-512.png?v=20260926-delivery-sync-v5",
+      "src": "./assets/app-icon-512.png?v=20260926-delivery-safe-v6",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
