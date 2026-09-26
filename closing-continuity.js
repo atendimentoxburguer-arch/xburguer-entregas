@@ -20,7 +20,7 @@
   const isFinal = item => isDelivered(item) || isCancelled(item);
 
   function rowsForDay(key) {
-    return (db.deliveries || []).filter(item => dayKey(item?.createdAt) === key);
+    return (db.deliveries || []).filter(item => String(item?.businessDate || dayKey(item?.createdAt)) === key);
   }
 
   function snapshotDelivery(item) {
