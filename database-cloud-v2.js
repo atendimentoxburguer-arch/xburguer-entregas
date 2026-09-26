@@ -376,9 +376,27 @@
     const keys = activeBatchKeys(batch, 'upserts', type);
     if (!keys.length) return;
 
+    const tombstoned = new Set();
+    if (type === 'deliveries') {
+      const tombstoneResult = await client
+        .from('delivery_tombstones')
+        .select('delivery_id')
+        .eq('user_id', currentUser.id)
+        .in('delivery_id', keys);
+      if (tombstoneResult.error) throw tombstoneResult.error;
+      (tombstoneResult.data || []).forEach(row => tombstoned.add(String(row.delivery_id)));
+    }
+
     const rows = [];
     const actualKeys = [];
     keys.forEach(key => {
+      if (tombstoned.has(String(key))) {
+        if (queue.upserts[type][key] === batch.upserts[type][key]) {
+          delete queue.upserts[type][key];
+        }
+        return;
+      }
+
       const item = currentRecord(type, key);
       if (!item) {
         if (queue.upserts[type][key] === batch.upserts[type][key]) {
@@ -403,6 +421,16 @@
   async function syncDeletes(batch, type) {
     const keys = activeBatchKeys(batch, 'deletes', type);
     if (!keys.length) return;
+
+    if (type === 'deliveries') {
+      for (const key of keys) {
+        const result = await client.rpc('xb_delete_delivery', { p_id: key });
+        if (result.error) throw result.error;
+      }
+      clearBatchEntries(batch, 'deletes', type, keys);
+      return;
+    }
+
     const table = type === 'closings' ? 'daily_closings' : type;
     const column = type === 'closings' ? 'date' : 'id';
     const result = await client.from(table).delete().eq('user_id', currentUser.id).in(column, keys);
@@ -466,6 +494,38 @@
         syncTimer = setTimeout(() => pushPendingChanges('fila'), 250);
       }
     }
+  }
+
+  async function deleteDeliveryAuthoritatively(id) {
+    if (!currentUser || !client) throw new Error('Banco online indisponível.');
+    if (!navigator.onLine) throw new Error('Para excluir uma entrega com segurança, conecte à internet.');
+
+    const sent = await pushPendingChanges('antes-da-exclusao');
+    if (sent === false || hasPending(queue)) {
+      throw new Error('Ainda existem alterações aguardando sincronização. Aguarde alguns segundos e tente novamente.');
+    }
+
+    const { data, error } = await client.rpc('xb_delete_delivery', { p_id: String(id) });
+    if (error) throw error;
+
+    suppressCloudPush = true;
+    window.__xbApplyingRemoteSnapshot = true;
+    try {
+      db.deliveries = (db.deliveries || []).filter(item => String(item.id) !== String(id));
+      save();
+      trackedSnapshot = snapshotForDiff();
+    } finally {
+      window.__xbApplyingRemoteSnapshot = false;
+      suppressCloudPush = false;
+    }
+
+    const pulled = await pullRemoteSnapshot('apos-exclusao');
+    if (pulled === false) throw new Error('A exclusão foi enviada, mas não foi possível conferir o banco online.');
+
+    const stillExists = (db.deliveries || []).some(item => String(item.id) === String(id));
+    if (stillExists) throw new Error('A entrega ainda aparece no banco online. A exclusão foi bloqueada por segurança.');
+
+    return data || { deleted: true, deliveryId: String(id) };
   }
 
   function rowToCourier(row) {
@@ -960,6 +1020,7 @@
       get client() { return client; },
       syncNow: () => pushPendingChanges('manual'),
       pullNow: () => pullRemoteSnapshot('manual'),
+      deleteDelivery: id => deleteDeliveryAuthoritatively(id),
       get pendingChanges() { return pendingCount(queue); }
     };
 
