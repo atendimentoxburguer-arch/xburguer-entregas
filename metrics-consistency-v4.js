@@ -47,7 +47,8 @@
 
   function activeOperationalDayKey() {
     const today = dayKey();
-    const open = [...openOperationalDayKeys()].filter(key => key && key <= today).sort();
+    const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
+    const open = [...new Set((db.deliveries || []).map(item => businessDayKey(item)).filter(key => key && key <= today && !closed.has(key)))].sort();
     return open[0] || String(db.settings?.activeBusinessDate || today);
   }
 
