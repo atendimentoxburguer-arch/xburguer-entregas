@@ -142,6 +142,8 @@
       };
 
       const item = await createDeliveryAuthoritatively(draft);
+      db.settings = db.settings || {};
+      if (item.businessDate) db.settings.activeBusinessDate = item.businessDate;
       db.deliveries.push(item);
       db.settings.nextDeliveryCode = Math.max(Number(db.settings.nextDeliveryCode || 1), item.code + 1);
       save();
