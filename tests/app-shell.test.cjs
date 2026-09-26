@@ -11,6 +11,9 @@ const index = fs.readFileSync('index.html', 'utf8');
 const pwa = fs.readFileSync('pwa-app.js', 'utf8');
 const core = fs.readFileSync('app-core.js', 'utf8');
 const production = fs.readFileSync('system-production-v2.js', 'utf8');
+const deliveryCreation = fs.readFileSync('atomic-delivery-code.js', 'utf8');
+const cloud = fs.readFileSync('database-cloud-v2.js', 'utf8');
+const databasePrep = fs.readFileSync('database-prep.js', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.webmanifest', 'utf8'));
 
 const appFilesRaw = [...app.matchAll(/'([^']+\.js)'/g)].map(match => match[1]);
@@ -58,6 +61,11 @@ assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa us
 assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
 assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
 assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
+assert(deliveryCreation.includes('waitForDeliveryInCloud'), 'Nova entrega precisa de confirmação de persistência no banco');
+assert(deliveryCreation.includes(".from('deliveries')"), 'Nova entrega precisa ser conferida diretamente no banco');
+assert(cloud.includes('localMutationNeedsReconciliation'), 'Pull remoto precisa proteger uma gravação local recente');
+assert(cloud.includes('protecao-pos-gravacao'), 'Reconciliação de gravação local precisa ocorrer antes do pull');
+assert(databasePrep.includes('applyingRemote'), 'Persistência local deve distinguir sincronização remota de alteração local');
 const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
 const closingContinuity = fs.readFileSync('closing-continuity.js', 'utf8');
 const pastDayGuard = fs.readFileSync('past-day-guard.js', 'utf8');
