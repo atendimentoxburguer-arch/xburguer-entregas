@@ -99,6 +99,7 @@
       'database-cloud-v2.js',
       'courier-fee-consistency.js',
       'atomic-delivery-code.js',
+      'delivery-recovery.js',
       'auth-onboarding.js',
       'currency-inputs.js',
       'change-calculator.js',
