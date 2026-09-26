@@ -10,6 +10,7 @@
 
   const numberValue = value => Number.isFinite(Number(value)) ? Number(value) : 0;
   const businessDay = value => window.XBMetrics?.dayKey?.(value) || dateKey(value instanceof Date ? value : new Date(value));
+  const deliveryBusinessDay = item => String(item?.businessDate || businessDay(item?.createdAt));
   const previousDayKey = key => window.XBMetrics?.addDaysKey?.(key, -1) || (() => {
     const [year, month, day] = String(key || '').split('-').map(Number);
     if (!year || !month || !day) return '';
@@ -31,7 +32,7 @@
 
   function deliveredForDate(key) {
     if (!key) return [];
-    return (db.deliveries || []).filter(item => item.status === 'Entregue' && businessDay(item.createdAt) === key);
+    return (db.deliveries || []).filter(item => item.status === 'Entregue' && deliveryBusinessDay(item) === key);
   }
 
   function deltaLabel(current, previous) {
