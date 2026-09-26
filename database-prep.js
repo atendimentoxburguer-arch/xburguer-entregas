@@ -233,15 +233,18 @@
   const saveBeforeDatabasePrep = save;
   save = function xbDatabaseReadySave() {
     db = normalizeDatabase(db);
-    db.settings.lastLocalMutationAt = nowIso();
-    db.settings.lastMutationDeviceId = deviceId();
+    const applyingRemote = Boolean(window.__xbApplyingRemoteSnapshot);
+    if (!applyingRemote) {
+      db.settings.lastLocalMutationAt = nowIso();
+      db.settings.lastMutationDeviceId = deviceId();
+    }
     saveBeforeDatabasePrep();
     window.dispatchEvent(new CustomEvent('xb:data-saved', {
       detail: {
         schemaVersion: SCHEMA_VERSION,
-        provider: 'local',
-        savedAt: db.settings.lastLocalMutationAt,
-        deviceId: db.settings.lastMutationDeviceId
+        provider: applyingRemote ? 'cloud' : 'local',
+        savedAt: applyingRemote ? '' : db.settings.lastLocalMutationAt,
+        deviceId: applyingRemote ? '' : db.settings.lastMutationDeviceId
       }
     }));
   };
