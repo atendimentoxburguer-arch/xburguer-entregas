@@ -65,6 +65,10 @@ assert(deliveryCreation.includes('waitForDeliveryInCloud'), 'Nova entrega precis
 assert(deliveryCreation.includes(".from('deliveries')"), 'Nova entrega precisa ser conferida diretamente no banco');
 assert(cloud.includes('localMutationNeedsReconciliation'), 'Pull remoto precisa proteger uma gravação local recente');
 assert(cloud.includes('protecao-pos-gravacao'), 'Reconciliação de gravação local precisa ocorrer antes do pull');
+assert(cloud.includes('fetchAllRemoteRows'), 'Leitura da nuvem precisa suportar mais de 1.000 registros');
+assert(cloud.includes('.range(from, from + PAGE_SIZE - 1)'), 'Leitura paginada precisa usar range por páginas');
+assert(cloud.includes("fetchAllRemoteRows('deliveries'"), 'Entregas precisam ser carregadas por paginação');
+
 assert(databasePrep.includes('applyingRemote'), 'Persistência local deve distinguir sincronização remota de alteração local');
 const metrics = fs.readFileSync('metrics-consistency-v4.js', 'utf8');
 const closingContinuity = fs.readFileSync('closing-continuity.js', 'utf8');
