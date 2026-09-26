@@ -31,6 +31,12 @@
     return `${parts.year}-${parts.month}-${parts.day}`;
   }
 
+  function businessDayKey(item) {
+    const explicit = String(item?.businessDate || '').trim();
+    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(explicit)) return explicit;
+    return dayKey(item?.createdAt);
+  }
+
   function addDaysKey(key, delta) {
     const [year, month, day] = String(key || '').split('-').map(Number);
     if (!year || !month || !day) return '';
