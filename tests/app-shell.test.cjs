@@ -59,6 +59,9 @@ manifestIconVersions.forEach(version => assert.strictEqual(version, appVersion, 
 
 assert(production.includes("rpc('xb_restore_backup'"), 'Restauração precisa usar RPC atômico do banco');
 assert(production.includes("rpc('xb_clear_operational_data'"), 'Limpeza precisa usar RPC autoritativo do banco');
+assert(cloud.includes("rpc('xb_delete_delivery'"), 'Exclusão de entrega precisa ser autoritativa no banco');
+assert(cloud.includes("delivery_tombstones"), 'Sincronização precisa reconhecer tombstones de entregas excluídas');
+assert(cloud.includes('deleteDelivery: id => deleteDeliveryAuthoritatively(id)'), 'XBCloud precisa expor exclusão autoritativa');
 assert(!production.includes("Dados apagados neste aparelho. A exclusão será sincronizada"), 'Limpeza offline não pode prometer sincronização posterior');
 assert(production.includes('pendingChanges'), 'Operações destrutivas precisam verificar a fila de sincronização');
 assert(deliveryCreation.includes('waitForDeliveryInCloud'), 'Nova entrega precisa de confirmação de persistência no banco');
