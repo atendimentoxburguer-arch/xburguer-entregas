@@ -8,7 +8,7 @@
   const isPending = item => ['Aguardando', 'Em rota'].includes(item?.status);
 
   function sameDay(item, key) {
-    const itemDay = window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item.createdAt));
+    const itemDay = String(item?.businessDate || window.XBMetrics?.dayKey?.(item?.createdAt) || dateKey(new Date(item.createdAt)));
     return Boolean(key) && itemDay === key;
   }
 
