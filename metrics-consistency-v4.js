@@ -45,6 +45,12 @@
     return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`;
   }
 
+  function activeOperationalDayKey() {
+    const today = dayKey();
+    const open = [...openOperationalDayKeys()].filter(key => key && key <= today).sort();
+    return open[0] || String(db.settings?.activeBusinessDate || today);
+  }
+
   function openOperationalDayKeys() {
     const today = dayKey();
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
@@ -80,7 +86,7 @@
   }
 
   function periodKeys(range) {
-    const today = dayKey();
+    const today = activeOperationalDayKey();
     if (range === 'all') return null;
     const days = Math.max(1, Math.floor(numberValue(range) || 7));
     const start = addDaysKey(today, -(days - 1));
@@ -492,6 +498,7 @@
   }, { once: true });
 
   window.XBMetrics = Object.freeze({
+    activeOperationalDayKey,
     timezone: BUSINESS_TZ,
     dayKey,
     addDaysKey,
