@@ -111,6 +111,14 @@
     (db.deliveries || []).forEach(item => {
       let itemChanged = false;
 
+      const fallbackBusinessDate = validDate(item.createdAt)
+        ? (window.XBMetrics?.dayKey?.(item.createdAt) || dateKey(new Date(item.createdAt)))
+        : '';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(item.businessDate || '')) && fallbackBusinessDate) {
+        item.businessDate = fallbackBusinessDate;
+        itemChanged = true;
+      }
+
       if (item.status === 'Em rota' || !STATUSES.includes(item.status)) {
         item.status = 'Aguardando';
         itemChanged = true;
