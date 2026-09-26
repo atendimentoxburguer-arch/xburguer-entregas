@@ -11,6 +11,7 @@
     ? window.XBMetrics.sumMoney(items || [], field)
     : Math.round((items || []).reduce((total, item) => total + Math.round(safeNumber(item[field]) * 100), 0)) / 100;
   const businessDay = value => window.XBMetrics?.dayKey?.(value) || dateKey(value instanceof Date ? value : new Date(value));
+  const deliveryBusinessDay = item => String(item?.businessDate || businessDay(item?.createdAt));
   const addDays = (key, delta) => window.XBMetrics?.addDaysKey?.(key, delta) || (() => {
     const [year, month, day] = String(key || '').split('-').map(Number);
     if (!year || !month || !day) return '';
@@ -25,7 +26,7 @@
     const key = businessDay(date);
     const rows = window.XBMetrics?.forDay
       ? window.XBMetrics.forDay(db.deliveries || [], key)
-      : (db.deliveries || []).filter(item => businessDay(item.createdAt) === key);
+      : (db.deliveries || []).filter(item => deliveryBusinessDay(item) === key);
     return status ? rows.filter(item => item.status === status) : rows;
   }
 
@@ -98,7 +99,7 @@
     const last7 = deliveredItems(window.XBMetrics?.filterRange
       ? window.XBMetrics.filterRange(db.deliveries || [], '7')
       : (db.deliveries || []).filter(item => {
-          const key = businessDay(item.createdAt);
+          const key = deliveryBusinessDay(item);
           const start = addDays(todayKey, -6);
           return key && key >= start && key <= todayKey;
         }));
@@ -239,7 +240,7 @@
     const previousStart = addDays(previousEnd, -(days - 1));
     return (db.deliveries || []).filter(item => {
       if (item.status !== 'Entregue') return false;
-      const key = businessDay(item.createdAt);
+      const key = deliveryBusinessDay(item);
       return key && key >= previousStart && key <= previousEnd;
     });
   }
@@ -247,7 +248,7 @@
   function bestRevenueDay(items) {
     const map = new Map();
     deliveredItems(items).forEach(item => {
-      const key = businessDay(item.createdAt);
+      const key = deliveryBusinessDay(item);
       map.set(key, (map.get(key) || 0) + safeNumber(item.orderValue));
     });
     const best = [...map.entries()].sort((a, b) => b[1] - a[1])[0];
