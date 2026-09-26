@@ -33,7 +33,7 @@
 
   function businessDayKey(item) {
     const explicit = String(item?.businessDate || '').trim();
-    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(explicit)) return explicit;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(explicit)) return explicit;
     return dayKey(item?.createdAt);
   }
 
@@ -50,7 +50,7 @@
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
     const keys = new Set([today]);
     (db.deliveries || []).forEach(item => {
-      const key = dayKey(item?.createdAt);
+      const key = businessDayKey(item);
       if (key && key < today && !closed.has(key)) keys.add(key);
     });
     return keys;
@@ -63,20 +63,20 @@
     if (range === 'today') {
       const openDays = openOperationalDayKeys();
       return list.filter(item => {
-        const key = dayKey(item?.createdAt);
+        const key = businessDayKey(item);
         return key === today || openDays.has(key);
       });
     }
     const days = Math.max(1, Math.floor(numberValue(range) || 1));
     const start = addDaysKey(today, -(days - 1));
     return list.filter(item => {
-      const key = dayKey(item?.createdAt);
+      const key = businessDayKey(item);
       return key && key >= start && key <= today;
     });
   }
 
   function forDay(items, key) {
-    return (items || []).filter(item => dayKey(item?.createdAt) === key);
+    return (items || []).filter(item => businessDayKey(item) === key);
   }
 
   function periodKeys(range) {
@@ -98,7 +98,7 @@
   function itemsBetween(items, bounds) {
     if (!bounds) return [];
     return (items || []).filter(item => {
-      const key = dayKey(item?.createdAt);
+      const key = businessDayKey(item);
       return key && key >= bounds.start && key <= bounds.end;
     });
   }
@@ -307,7 +307,7 @@
   function bestRevenueDay(items) {
     const map = new Map();
     (items || []).filter(isDelivered).forEach(item => {
-      const key = dayKey(item.createdAt);
+      const key = businessDayKey(item);
       map.set(key, (map.get(key) || 0) + cents(item.orderValue));
     });
     const best = [...map.entries()].sort((a, b) => b[1] - a[1])[0];
