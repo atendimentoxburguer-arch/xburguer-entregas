@@ -243,7 +243,7 @@
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
     const days = new Set();
     (db.deliveries || []).forEach(item => {
-      const key = dayKey(item?.createdAt);
+      const key = String(item?.businessDate || dayKey(item?.createdAt));
       if (key && key <= today && !closed.has(key)) days.add(key);
     });
     return [...days].sort();
@@ -300,12 +300,11 @@
   }
 
   function activeDay() {
-    syncDaySelector();
-    const select = document.getElementById('closingDaySelect');
-    const days = selectableClosingDays();
-    return select?.value && days.includes(select.value)
-      ? select.value
-      : dayKey(new Date());
+    const today = dayKey(new Date());
+    const open = openOperationalDays().filter(key => key <= today).sort();
+    if (open.length) return open[0];
+    const configured = String(db.settings?.activeBusinessDate || '');
+    return configured || today;
   }
 
   function pastOpenDays() {
