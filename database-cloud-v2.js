@@ -302,7 +302,8 @@
       status: item.status === 'Em rota' ? 'Aguardando' : (item.status || 'Aguardando'),
       payment_confirmed_at: item.paymentConfirmedAt || null,
       created_at: item.createdAt || nowIso(),
-      updated_at: item.updatedAt || item.createdAt || nowIso()
+      updated_at: item.updatedAt || item.createdAt || nowIso(),
+      business_date: item.businessDate || null
     };
   }
 
@@ -586,7 +587,8 @@
       status: row.status || 'Aguardando',
       paymentConfirmedAt: row.payment_confirmed_at || '',
       createdAt: row.created_at,
-      updatedAt: row.updated_at || row.created_at
+      updatedAt: row.updated_at || row.created_at,
+      businessDate: row.business_date || ''
     };
   }
 
@@ -697,7 +699,8 @@
     if (type === 'deliveries') return JSON.stringify({
       id: item.id, code: Number(item.code || 0), client: item.client || '', phone: item.phone || '', address: item.address || '', reference: item.reference || '',
       courierId: item.courierId || null, fee: Number(item.fee || 0), orderValue: Number(item.orderValue || 0), payment: item.payment || '', changeFor: item.changeFor ?? '',
-      notes: item.notes || '', status: item.status || '', paymentConfirmedAt: item.paymentConfirmedAt || ''
+      notes: item.notes || '', status: item.status || '', paymentConfirmedAt: item.paymentConfirmedAt || '',
+      businessDate: item.businessDate || ''
     });
     const copy = clone(item);
     delete copy.updatedAt;
@@ -780,6 +783,19 @@
       }
 
       if (!remote.hasRemoteState && localHasMeaningfulData()) return false;
+
+      // A entrega recém-criada pode estar localmente mais nova que o snapshot remoto.
+      // Antes de aplicar qualquer pull, preserve todos os IDs ainda pendentes na fila.
+      const pendingDeliveryIds = new Set(Object.keys(queue?.upserts?.deliveries || {}));
+      if (pendingDeliveryIds.size) {
+        const localDeliveries = (db.deliveries || []).filter(item => pendingDeliveryIds.has(String(item.id)));
+        const remoteIds = new Set((remote.snapshot?.deliveries || []).map(item => String(item.id)));
+        remote.snapshot.deliveries = [
+          ...(remote.snapshot.deliveries || []),
+          ...localDeliveries.filter(item => !remoteIds.has(String(item.id)))
+        ];
+      }
+
       await applyRemoteSnapshot(remote.snapshot);
       const syncedAt = nowIso();
       state.connected = true;
@@ -821,10 +837,13 @@
       localSave();
       const after = snapshotForDiff();
       if (!suppressCloudPush && currentUser) {
-        queueDiff(before, after);
+        db.settings = db.settings || {};
+        db.settings.lastLocalMutationAt = nowIso();
+        localSave();
+        queueDiff(before, snapshotForDiff());
         schedulePush('save');
       }
-      trackedSnapshot = after;
+      trackedSnapshot = snapshotForDiff();
     };
   }
 
