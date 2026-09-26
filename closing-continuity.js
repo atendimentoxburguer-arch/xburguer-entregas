@@ -42,7 +42,8 @@
       status: item.status || 'Entregue',
       createdAt: item.createdAt,
       updatedAt: item.updatedAt || item.createdAt,
-      paymentConfirmedAt: item.paymentConfirmedAt || ''
+      paymentConfirmedAt: item.paymentConfirmedAt || '',
+      businessDate: item.businessDate || ''
     };
   }
 
