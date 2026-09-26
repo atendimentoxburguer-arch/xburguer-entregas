@@ -34,6 +34,16 @@
     select.value = item.status === 'Em rota' ? 'Aguardando' : (item.status || 'Aguardando');
   }
 
+  function isClosedBusinessDay(item) {
+    const key = String(item?.businessDate || '');
+    return Boolean(key && (db.closings || []).some(closing => String(closing?.date || '') === key));
+  }
+
+  function notifyClosedDay(item) {
+    const key = String(item?.businessDate || '').split('-').reverse().join('/');
+    if (typeof toast === 'function') toast(`O dia ${key || 'desta entrega'} já foi finalizado. Reabra o dia antes de alterar o pedido #${String(item?.code || '').padStart(3, '0')}.`, 'error');
+  }
+
   function enhanceEditorHeader(item) {
     const title = document.getElementById('deliveryModalTitle');
     if (title && item) title.textContent = `Editar entrega #${String(item.code || '').padStart(3, '0')}`;
@@ -55,6 +65,10 @@
 
   const previousOpenDeliveryEditor = openDeliveryEditor;
   openDeliveryEditor = function xbOpenFullDeliveryEditor(item) {
+    if (isClosedBusinessDay(item)) {
+      notifyClosedDay(item);
+      return;
+    }
     ensureStatusField();
     previousOpenDeliveryEditor(item);
     setEditStatus(item);
@@ -66,11 +80,16 @@
   // troca podia manter a taxa do entregador anterior e causar divergência.
   document.getElementById('editDeliveryCourier')?.addEventListener('change', syncFeeFromEditedCourier);
 
-  document.getElementById('deliveryEditForm')?.addEventListener('submit', () => {
+  document.getElementById('deliveryEditForm')?.addEventListener('submit', event => {
     const id = document.getElementById('editDeliveryId')?.value;
     const select = document.getElementById('editDeliveryStatus');
     const item = db.deliveries.find(delivery => delivery.id === id);
     if (!item || !select) return;
+    if (isClosedBusinessDay(item)) {
+      event.preventDefault();
+      notifyClosedDay(item);
+      return;
+    }
 
     const nextStatus = EDITABLE_STATUSES.some(option => option.value === select.value)
       ? select.value
