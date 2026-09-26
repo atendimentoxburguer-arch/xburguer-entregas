@@ -618,6 +618,23 @@
     persistQueue();
   }
 
+  function latestRemoteMutation(remote) {
+    const times = [
+      remote?.settingsUpdatedAt,
+      ...(remote?.snapshot?.couriers || []).flatMap(item => [item?.updatedAt, item?.createdAt]),
+      ...(remote?.snapshot?.deliveries || []).flatMap(item => [item?.updatedAt, item?.createdAt]),
+      ...(remote?.snapshot?.closings || []).flatMap(item => [item?.updatedAt, item?.closedAt, item?.reopenedAt])
+    ].map(value => new Date(value || 0).getTime()).filter(value => Number.isFinite(value) && value > 0);
+    return times.length ? Math.max(...times) : 0;
+  }
+
+  function localMutationNeedsReconciliation(remote) {
+    const localTime = new Date(db.settings?.lastLocalMutationAt || 0).getTime();
+    const remoteTime = latestRemoteMutation(remote);
+    if (!localTime) return false;
+    return localTime > remoteTime + 250;
+  }
+
   async function pullRemoteSnapshot(reason = 'remote') {
     if (!currentUser || !client || !navigator.onLine) return false;
     if (syncing) {
@@ -630,7 +647,20 @@
     }
 
     try {
-      const remote = await fetchRemoteSnapshot();
+      let remote = await fetchRemoteSnapshot();
+
+      // Defesa contra o caso mais perigoso: um pull chega logo depois de uma
+      // gravação local, antes que a fila tenha sido reconhecida. Se a alteração
+      // local for mais nova que o snapshot remoto, ela é conciliada primeiro.
+      if (!hasPending(queue) && localMutationNeedsReconciliation(remote)) {
+        queueLegacyReconciliation(remote.snapshot);
+        if (hasPending(queue)) {
+          const sent = await pushPendingChanges('protecao-pos-gravacao');
+          if (!sent || hasPending(queue)) return false;
+          remote = await fetchRemoteSnapshot();
+        }
+      }
+
       if (!remote.hasRemoteState && localHasMeaningfulData()) return false;
       await applyRemoteSnapshot(remote.snapshot);
       const syncedAt = nowIso();
