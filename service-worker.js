@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v39`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v40`;
 
 const APP_SHELL = [
   './',
@@ -37,6 +37,7 @@ const APP_SHELL = [
   './database-cloud-v2.js',
   './courier-fee-consistency.js',
   './atomic-delivery-code.js',
+  './delivery-recovery.js',
   './auth-onboarding.js',
   './currency-inputs.js',
   './change-calculator.js',
