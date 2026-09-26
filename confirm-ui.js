@@ -182,10 +182,19 @@
           icon: 'trash-2'
         });
         if (!ok) return;
-        db.deliveries = db.deliveries.filter(delivery => delivery.id !== item.id);
-        save();
-        toast('Entrega excluída.');
-        renderAll();
+        try {
+          if (window.XBCloud?.deleteDelivery) {
+            await window.XBCloud.deleteDelivery(item.id);
+          } else {
+            db.deliveries = db.deliveries.filter(delivery => delivery.id !== item.id);
+            save();
+          }
+          toast('Entrega excluída e confirmada no banco.');
+          renderAll();
+        } catch (error) {
+          console.error('[X-Burguer] Exclusão autoritativa:', error);
+          toast(String(error?.message || 'Não foi possível excluir a entrega com segurança.'), 'error');
+        }
         return;
       }
 
