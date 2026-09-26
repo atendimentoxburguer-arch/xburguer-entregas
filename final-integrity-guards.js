@@ -136,7 +136,8 @@
     const button = document.getElementById('closeDayBtn');
     if (!button || button.classList.contains('hidden')) return;
     const today = dayKey(new Date());
-    const pending = (db.deliveries || []).filter(item => dayKey(item.createdAt) === today && (item.status === 'Aguardando' || item.status === 'Em rota'));
+    const activeDay = window.XBClosingContinuity?.activeDay?.() || today;
+    const pending = (db.deliveries || []).filter(item => String(item?.businessDate || dayKey(item.createdAt)) === activeDay && (item.status === 'Aguardando' || item.status === 'Em rota'));
     button.disabled = pending.length > 0;
     button.title = pending.length ? `Existem ${pending.length} entrega(s) pendente(s). Conclua ou cancele antes de fechar.` : 'Finalizar e conferir o dia no banco';
   }
