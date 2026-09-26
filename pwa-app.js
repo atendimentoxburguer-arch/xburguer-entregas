@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20260926-delivery-sync-v4';
+  const APP_VERSION = '20260926-delivery-sync-v5';
 
   let deferredPrompt = null;
   let installButton = null;
