@@ -377,6 +377,8 @@
     if (!keys.length) return;
 
     const tombstoned = new Set();
+    const remoteUpdatedAt = new Map();
+
     if (type === 'deliveries') {
       const tombstoneResult = await client
         .from('delivery_tombstones')
@@ -385,6 +387,17 @@
         .in('delivery_id', keys);
       if (tombstoneResult.error) throw tombstoneResult.error;
       (tombstoneResult.data || []).forEach(row => tombstoned.add(String(row.delivery_id)));
+
+      // Um notebook pode ter uma versão antiga de uma entrega em sua fila.
+      // Nunca deixe essa versão antiga sobrescrever uma entrega mais nova criada
+      // ou editada em outro aparelho.
+      const remoteResult = await client
+        .from('deliveries')
+        .select('id,updated_at')
+        .eq('user_id', currentUser.id)
+        .in('id', keys);
+      if (remoteResult.error) throw remoteResult.error;
+      (remoteResult.data || []).forEach(row => remoteUpdatedAt.set(String(row.id), row.updated_at));
     }
 
     const rows = [];
@@ -405,6 +418,22 @@
         }
         return;
       }
+
+      if (type === 'deliveries') {
+        const remoteTimestamp = remoteUpdatedAt.get(String(key));
+        const localTimestamp = item.updatedAt || item.createdAt;
+        if (remoteTimestamp && localTimestamp) {
+          const remoteMs = Date.parse(remoteTimestamp);
+          const localMs = Date.parse(localTimestamp);
+          if (Number.isFinite(remoteMs) && Number.isFinite(localMs) && remoteMs > localMs) {
+            if (queue.upserts[type][key] === batch.upserts[type][key]) {
+              delete queue.upserts[type][key];
+            }
+            return;
+          }
+        }
+      }
+
       rows.push(toRemote(type, item));
       actualKeys.push(key);
     });
