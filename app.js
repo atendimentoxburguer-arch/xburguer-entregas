@@ -1,5 +1,5 @@
 (() => {
-  const version = '20260926-delivery-safe-v6';
+  const version = '20260930-delivery-safe-v7';
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.

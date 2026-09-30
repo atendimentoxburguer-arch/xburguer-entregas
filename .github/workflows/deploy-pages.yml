@@ -1,29 +1,34 @@
-name: Deploy GitHub Pages
+name: Validate and deploy GitHub Pages
 
 on:
+  pull_request:
+    branches: ["main"]
   push:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages-v2"
+  group: pages-v2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  validate:
+    name: Validate and test
     timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
       - name: Validate application files
         shell: bash
@@ -38,16 +43,28 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
 
       - name: Test business metrics
-        shell: bash
-        run: |
-          set -euo pipefail
-          node tests/metrics-consistency.test.cjs
+        run: node tests/metrics-consistency.test.cjs
 
       - name: Test application shell
-        shell: bash
-        run: |
-          set -euo pipefail
-          node tests/app-shell.test.cjs
+        run: node tests/app-shell.test.cjs
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
