@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20260930-delivery-safe-v7';
+  const APP_VERSION = '20260930-trash-ui-v8';
 
   let deferredPrompt = null;
   let installButton = null;
@@ -187,3 +187,4 @@
     else window.addEventListener('load', registerAppWorker, { once: true });
   }
 })();
+
