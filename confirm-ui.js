@@ -158,10 +158,8 @@
   document.addEventListener('click', async event => {
     const deliveryButton = event.target.closest('[data-delivery-action="delete"],[data-delivery-action="cancel"]');
     const courierButton = event.target.closest('[data-courier-action="delete"]');
-    const clearButton = event.target.closest('#clearDataBtn');
-    const reopenButton = event.target.closest('#reopenDayBtn');
 
-    if (!deliveryButton && !courierButton && !clearButton && !reopenButton) return;
+    if (!deliveryButton && !courierButton) return;
     stopOriginal(event);
 
     if (deliveryButton) {
@@ -170,13 +168,18 @@
       const code = String(item.code || '').padStart(3, '0');
       const client = item.client?.trim() || 'Cliente não informado';
       const isDelete = deliveryButton.dataset.deliveryAction === 'delete';
+      const canRestoreDeletedDelivery = typeof window.XBCloud?.deleteDelivery === 'function';
 
       if (isDelete) {
         const ok = await confirmAction({
           title: `Excluir entrega #${code}?`,
-          text: 'A entrega será apagada definitivamente do histórico do sistema.',
+          text: canRestoreDeletedDelivery
+            ? 'A entrega será movida para a Lixeira e poderá ser restaurada depois.'
+            : 'A entrega será apagada definitivamente do histórico do sistema.',
           detail: `${client}${item.address ? ` • ${item.address}` : ''}`,
-          warning: 'Depois de excluir, não será possível recuperar esta entrega.',
+          warning: canRestoreDeletedDelivery
+            ? 'A entrega ficará disponível na Lixeira para restauração.'
+            : 'Depois de excluir, não será possível recuperar esta entrega.',
           confirmText: 'Sim, excluir',
           cancelText: 'Manter entrega',
           icon: 'trash-2'
@@ -184,12 +187,18 @@
         if (!ok) return;
         try {
           if (window.XBCloud?.deleteDelivery) {
-            await window.XBCloud.deleteDelivery(item.id);
+            const result = await window.XBCloud.deleteDelivery(item.id);
+            const message = result?.deleted
+              ? 'Entrega movida para a Lixeira e confirmada no banco.'
+              : result?.code !== null && result?.code !== undefined
+                ? 'A entrega já estava na Lixeira.'
+                : 'A entrega já não estava no banco.';
+            toast(message);
           } else {
             db.deliveries = db.deliveries.filter(delivery => delivery.id !== item.id);
             save();
+            toast('Entrega excluída.');
           }
-          toast('Entrega excluída e confirmada no banco.');
           renderAll();
         } catch (error) {
           console.error('[X-Burguer] Exclusão autoritativa:', error);
@@ -243,54 +252,8 @@
       return;
     }
 
-    if (clearButton) {
-      const deliveriesCount = db.deliveries.length;
-      const closingsCount = db.closings.length;
-      if (!deliveriesCount && !closingsCount) {
-        toast('Não há entregas ou fechamentos para apagar.', 'error');
-        return;
-      }
-      const ok = await confirmAction({
-        title: 'Apagar dados operacionais?',
-        text: 'Todas as entregas e todos os fechamentos serão removidos de uma vez.',
-        detail: `${deliveriesCount} entrega${deliveriesCount === 1 ? '' : 's'} • ${closingsCount} fechamento${closingsCount === 1 ? '' : 's'}`,
-        warning: 'Essa é uma exclusão permanente. Faça um backup antes se quiser preservar esses dados.',
-        confirmText: 'Apagar tudo',
-        cancelText: 'Não apagar',
-        icon: 'database-zap',
-        kicker: 'ATENÇÃO • EXCLUSÃO EM MASSA'
-      });
-      if (!ok) return;
-      db.deliveries = [];
-      db.closings = [];
-      save();
-      toast('Entregas e fechamentos apagados.');
-      renderAll();
-      return;
-    }
-
-    if (reopenButton) {
-      const today = dateKey();
-      if (!db.closings.some(item => item.date === today)) return;
-      const ok = await confirmAction({
-        title: 'Reabrir o fechamento de hoje?',
-        text: 'O registro de fechamento de hoje será removido e o dia voltará a ficar aberto para ajustes.',
-        detail: 'As entregas cadastradas continuarão no sistema normalmente.',
-        warning: 'Somente o fechamento será desfeito; os pedidos não serão apagados.',
-        confirmText: 'Reabrir dia',
-        cancelText: 'Manter fechado',
-        icon: 'rotate-ccw',
-        kicker: 'CONFIRMAR REABERTURA',
-        tone: 'warning'
-      });
-      if (!ok) return;
-      db.closings = db.closings.filter(item => item.date !== today);
-      save();
-      toast('Fechamento reaberto.');
-      renderClosing();
-      if (typeof refreshIcons === 'function') refreshIcons();
-    }
   }, true);
 
   redrawIcons();
 })();
+

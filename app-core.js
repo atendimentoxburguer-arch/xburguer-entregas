@@ -188,7 +188,9 @@ function showApp() {
   $('appView').classList.remove('hidden');
   renderAll();
 }
-if (sessionStorage.getItem(SESSION_KEY) === '1') showApp();
+// O acesso de produção deve aguardar a validação do Supabase. A sessão local
+// só pode liberar a interface quando o modo Supabase estiver desativado.
+if (!window.XB_SUPABASE_CONFIG?.enabled && sessionStorage.getItem(SESSION_KEY) === '1') showApp();
 
 // NAVIGATION
 function closeSidebar() {
@@ -257,8 +259,8 @@ function filterRange(items, range) {
 // SELECTS + PAYMENT FIELDS
 function renderSelects() {
   const active = db.couriers.filter(item => item.active);
-  $('deliveryCourier').innerHTML = '<option value="">Selecione um entregador</option>' + active.map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join('');
-  $('editDeliveryCourier').innerHTML = '<option value="">Sem entregador</option>' + db.couriers.map(item => `<option value="${item.id}">${esc(item.name)}</option>`).join('');
+  $('deliveryCourier').innerHTML = '<option value="">Selecione um entregador</option>' + active.map(item => `<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
+  $('editDeliveryCourier').innerHTML = '<option value="">Sem entregador</option>' + db.couriers.map(item => `<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
 }
 
 $('deliveryCourier').addEventListener('change', event => {
@@ -374,10 +376,10 @@ function renderDeliveries() {
       <td><span class="table-name">${money(item.orderValue)}</span><span class="table-muted">Taxa ${money(item.fee)}</span></td>
       <td>${statusHTML(item.status)}</td>
       <td><div class="row-actions">
-        ${!['Entregue', 'Cancelada'].includes(item.status) ? `<button class="icon-btn" data-delivery-action="advance" data-id="${item.id}" title="Avançar status" aria-label="Avançar status">${icon('arrow-right')}</button>` : ''}
-        <button class="icon-btn" data-delivery-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega">${icon('pencil')}</button>
-        ${!['Entregue', 'Cancelada'].includes(item.status) ? `<button class="icon-btn" data-delivery-action="cancel" data-id="${item.id}" title="Cancelar entrega" aria-label="Cancelar entrega">${icon('ban')}</button>` : ''}
-        <button class="icon-btn" data-delivery-action="delete" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega">${icon('trash-2')}</button>
+        ${!['Entregue', 'Cancelada'].includes(item.status) ? `<button class="icon-btn" data-delivery-action="advance" data-id="${esc(item.id)}" title="Avançar status" aria-label="Avançar status">${icon('arrow-right')}</button>` : ''}
+        <button class="icon-btn" data-delivery-action="edit" data-id="${esc(item.id)}" title="Editar entrega" aria-label="Editar entrega">${icon('pencil')}</button>
+        ${!['Entregue', 'Cancelada'].includes(item.status) ? `<button class="icon-btn" data-delivery-action="cancel" data-id="${esc(item.id)}" title="Cancelar entrega" aria-label="Cancelar entrega">${icon('ban')}</button>` : ''}
+        <button class="icon-btn" data-delivery-action="delete" data-id="${esc(item.id)}" title="Excluir entrega" aria-label="Excluir entrega">${icon('trash-2')}</button>
       </div></td>
     </tr>`).join('')}</tbody></table>` : empty('Nenhuma entrega encontrada', 'Altere os filtros ou cadastre uma nova entrega.', 'package-search');
   refreshIcons();
@@ -537,7 +539,7 @@ function renderCouriers() {
   $('courierGrid').innerHTML = db.couriers.length ? db.couriers.map(item => {
     const completed = done.filter(delivery => delivery.courierId === item.id);
     const fees = completed.reduce((sum, delivery) => sum + Number(delivery.fee || 0), 0);
-    return `<article class="courier-card"><div class="courier-top"><div class="courier-person"><div class="courier-avatar">${initials(item.name)}</div><div><strong>${esc(item.name)}</strong><span>${esc(item.phone || 'Sem telefone')}</span></div></div><div class="dot ${item.active ? '' : 'off'}" title="${item.active ? 'Ativo' : 'Inativo'}"></div></div><div class="courier-data"><div><span>Taxa padrão</span><strong>${money(item.fee)}</strong></div><div><span>Entregas</span><strong>${completed.length}</strong></div></div><div class="courier-data"><div><span>Taxas recebidas</span><strong>${money(fees)}</strong></div><div><span>Status</span><strong>${item.active ? 'Ativo' : 'Inativo'}</strong></div></div><div class="courier-actions"><button class="btn btn-light btn-sm" data-courier-action="edit" data-id="${item.id}">${icon('pencil')}Editar</button><button class="btn btn-danger btn-sm" data-courier-action="delete" data-id="${item.id}" aria-label="Excluir entregador">${icon('trash-2')}</button></div></article>`;
+    return `<article class="courier-card"><div class="courier-top"><div class="courier-person"><div class="courier-avatar">${esc(initials(item.name))}</div><div><strong>${esc(item.name)}</strong><span>${esc(item.phone || 'Sem telefone')}</span></div></div><div class="dot ${item.active ? '' : 'off'}" title="${item.active ? 'Ativo' : 'Inativo'}"></div></div><div class="courier-data"><div><span>Taxa padrão</span><strong>${money(item.fee)}</strong></div><div><span>Entregas</span><strong>${completed.length}</strong></div></div><div class="courier-data"><div><span>Taxas recebidas</span><strong>${money(fees)}</strong></div><div><span>Status</span><strong>${item.active ? 'Ativo' : 'Inativo'}</strong></div></div><div class="courier-actions"><button class="btn btn-light btn-sm" data-courier-action="edit" data-id="${esc(item.id)}">${icon('pencil')}Editar</button><button class="btn btn-danger btn-sm" data-courier-action="delete" data-id="${esc(item.id)}" aria-label="Excluir entregador">${icon('trash-2')}</button></div></article>`;
   }).join('') : empty('Nenhum entregador', 'Cadastre sua equipe de entregas.', 'users-round');
   refreshIcons();
 }
@@ -752,7 +754,12 @@ $('exportCsvBtn').addEventListener('click', () => {
     cleanLegacyChangeNote(item.notes || ''),
     item.status
   ]);
-  const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(';')).join('\n');
+  const csvCell = value => {
+    const text = String(value ?? '');
+    const safeText = /^[\s\u0000-\u001f]*[=+\-@]/.test(text) ? `'${text}` : text;
+    return `"${safeText.replaceAll('"', '""')}"`;
+  };
+  const csv = [headers, ...rows].map(row => row.map(csvCell).join(';')).join('\n');
   download(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8' }), `xburguer-entregas-${dateKey()}.csv`);
   toast('CSV exportado.');
 });
@@ -772,3 +779,4 @@ function renderAll() {
 }
 
 refreshIcons();
+
