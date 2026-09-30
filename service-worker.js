@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v41`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v42`;
 
 const APP_SHELL = [
   './',
@@ -120,3 +120,4 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(cacheFirst(request));
 });
+
