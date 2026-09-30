@@ -19,6 +19,17 @@ Sistema web responsivo e instalável como aplicativo para controle interno de en
 - Armazenamento local mantido como apoio para recuperação e uso das telas já carregadas
 - Numeração de pedidos reservada de forma atômica no Supabase para evitar duplicidade entre aparelhos
 
+## Verificações e publicação
+
+Pull requests direcionados à `main` e alterações enviadas para `main` passam pelas verificações de sintaxe, testes de métricas e teste da estrutura do aplicativo. A publicação no GitHub Pages acontece somente após as verificações passarem em `main`.
+
+Para executar as verificações localmente, use Node.js 24 ou compatível:
+
+```sh
+node tests/metrics-consistency.test.cjs
+node tests/app-shell.test.cjs
+```
+
 ## Banco de dados
 
 O projeto dedicado do Supabase está conectado ao aplicativo. A aplicação usa somente a URL do projeto e a chave publicável no frontend; nenhuma chave administrativa ou senha do banco é exposta no GitHub Pages.

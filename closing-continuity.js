@@ -220,7 +220,20 @@
     if (busy) return;
     const key = activeDay();
     const label = key.split('-').reverse().join('/');
-    if (!window.confirm('Deseja reabrir o fechamento do dia ' + label + '?')) return;
+    const ok = typeof window.xbConfirm === 'function'
+      ? await window.xbConfirm({
+          title: `Reabrir o fechamento do dia ${label}?`,
+          text: 'O fechamento será removido do banco e o dia ficará aberto para ajustes.',
+          detail: 'As entregas cadastradas continuarão no sistema normalmente.',
+          warning: 'Somente o fechamento será desfeito; os pedidos não serão apagados.',
+          confirmText: 'Reabrir dia',
+          cancelText: 'Manter fechado',
+          icon: 'rotate-ccw',
+          kicker: 'CONFIRMAR REABERTURA',
+          tone: 'warning'
+        })
+      : window.confirm('Deseja reabrir o fechamento do dia ' + label + '?');
+    if (!ok) return;
 
     busy = true;
     const button = event.currentTarget;
@@ -354,3 +367,4 @@
     scanOpenPastDays
   });
 })();
+
