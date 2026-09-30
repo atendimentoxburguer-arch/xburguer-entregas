@@ -397,4 +397,3 @@
   `;
   document.head.appendChild(style);
 })();
-

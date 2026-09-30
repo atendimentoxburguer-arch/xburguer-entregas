@@ -187,4 +187,3 @@
     else window.addEventListener('load', registerAppWorker, { once: true });
   }
 })();
-

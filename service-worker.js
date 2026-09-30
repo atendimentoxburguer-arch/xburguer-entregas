@@ -120,4 +120,3 @@ self.addEventListener('fetch', event => {
 
   event.respondWith(cacheFirst(request));
 });
-

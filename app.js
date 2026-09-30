@@ -144,4 +144,3 @@
     console.error('[X-Burguer] Falha ao iniciar o sistema:', error);
   });
 })();
-
