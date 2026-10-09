@@ -191,6 +191,10 @@
 
     const key = activeDay();
     if ((db.closings || []).some(item => item?.date === key)) return;
+    const calendarDay = dayKey(new Date());
+    if (key > calendarDay) {
+      return toast('O dia operacional ' + key.split('-').reverse().join('/') + ' ainda é uma data futura. Ele poderá ser finalizado a partir dessa data.', 'error');
+    }
     const rows = rowsForDay(key);
     const pending = rows.filter(isPending).length;
     if (!rows.length) return toast('Não há entregas registradas para finalizar o dia ' + key.split('-').reverse().join('/') + '.', 'error');
@@ -203,6 +207,9 @@
     if (button) button.disabled = true;
     try {
       await finalizeRemote(key);
+      const nextDay = window.XBMetrics?.activeOperationalDayKey?.() || dayKey(new Date());
+      const selector = document.getElementById('closingDaySelect');
+      if (selector && selectableClosingDays().includes(nextDay)) selector.value = nextDay;
       toast('Fechamento finalizado, conferido e confirmado no banco de dados.');
       renderAfterChange();
     } catch (error) {
@@ -240,6 +247,8 @@
     if (button) button.disabled = true;
     try {
       await reopenRemote(key);
+      const selector = document.getElementById('closingDaySelect');
+      if (selector && selectableClosingDays().includes(key)) selector.value = key;
       toast('Fechamento reaberto e confirmado no banco de dados.');
       renderAfterChange();
     } catch (error) {
@@ -252,13 +261,14 @@
   }
 
   function openOperationalDays() {
-    const today = dayKey(new Date());
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
     const days = new Set();
     (db.deliveries || []).forEach(item => {
       const key = String(item?.businessDate || dayKey(item?.createdAt));
-      if (key && key <= today && !closed.has(key)) days.add(key);
+      if (key && !closed.has(key)) days.add(key);
     });
+    const active = window.XBMetrics?.activeOperationalDayKey?.();
+    if (active && !closed.has(active)) days.add(active);
     return [...days].sort();
   }
 
