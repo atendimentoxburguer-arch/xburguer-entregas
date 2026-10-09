@@ -143,8 +143,8 @@
     if (!cloudAvailable()) throw new Error('É necessária conexão com a internet para finalizar o dia com segurança.');
     if (window.XBCloud?.syncNow) {
       const synced = await window.XBCloud.syncNow();
-      if (synced === false && Number(window.XBCloud?.pendingChanges || 0) > 0) {
-        throw new Error('Não foi possível enviar todas as alterações ao banco. Aguarde e tente novamente.');
+      if (synced === false) {
+        throw new Error(window.XBCloud?.state?.lastError || 'Não foi possível enviar todas as alterações ao banco. Aguarde e tente novamente.');
       }
     }
     if (Number(window.XBCloud?.pendingChanges || 0) > 0) {
@@ -160,7 +160,10 @@
     });
     if (error) throw error;
 
-    if (window.XBCloud?.pullNow) await window.XBCloud.pullNow();
+    const pulled = await window.XBCloud?.pullNow?.();
+    if (pulled !== true) {
+      throw new Error(window.XBCloud?.state?.lastError || 'O fechamento foi enviado, mas não foi possível conferir o banco online. Sincronize novamente para confirmar.');
+    }
     const closing = (db.closings || []).find(item => item?.date === key);
     if (!closing || needsRepair(closing)) {
       throw new Error('O fechamento não passou na conferência final. Sincronize novamente e confira antes de sair.');
@@ -172,7 +175,10 @@
     await flushBeforeClosing();
     const { error } = await window.XBCloud.client.rpc('xb_reopen_day', { p_date: key });
     if (error) throw error;
-    if (window.XBCloud?.pullNow) await window.XBCloud.pullNow();
+    const pulled = await window.XBCloud?.pullNow?.();
+    if (pulled !== true) {
+      throw new Error(window.XBCloud?.state?.lastError || 'A reabertura foi enviada, mas não foi possível conferir o banco online. Sincronize novamente para confirmar.');
+    }
     if ((db.closings || []).some(item => item?.date === key)) {
       throw new Error('Não foi possível confirmar a reabertura no banco de dados.');
     }

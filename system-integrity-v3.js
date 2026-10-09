@@ -80,8 +80,10 @@
 
   function normalizeState() {
     if (!db || typeof db !== 'object') return false;
+    if (window.__xbApplyingRemoteSnapshot) return false;
     let changed = false;
     const couriers = courierMap();
+    const closedDays = new Set((db.closings || []).map(item => String(item.date)));
 
     if (db.settings) {
       const nextDefault = money2(db.settings.defaultFee);
@@ -109,6 +111,8 @@
     });
 
     (db.deliveries || []).forEach(item => {
+      const key = item.businessDate || window.XBMetrics?.dayKey?.(item.createdAt) || dateKey(new Date(item.createdAt));
+      if (closedDays.has(key)) return;
       let itemChanged = false;
 
       const fallbackBusinessDate = validDate(item.createdAt)

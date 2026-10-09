@@ -330,7 +330,8 @@
   const renderClosingBeforeAudit = renderClosing;
   renderClosing = function xbAuditedRenderClosing() {
     renderClosingBeforeAudit();
-    const closing = db.closings.find(item => item.date === dateKey());
+    const key = window.XBClosingContinuity?.activeDay?.() || dateKey();
+    const closing = db.closings.find(item => item.date === key);
     const details = closing?.detailsV2;
     if (!details) return;
     const count = finiteNumber(details.totalDeliveries, 0);

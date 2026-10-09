@@ -28,6 +28,7 @@ Para executar as verificações localmente, use Node.js 24 ou compatível:
 ```sh
 node tests/metrics-consistency.test.cjs
 node tests/app-shell.test.cjs
+node --test tests/cloud-sync.test.cjs
 ```
 
 ## Banco de dados
@@ -35,6 +36,8 @@ node tests/app-shell.test.cjs
 O projeto dedicado do Supabase está conectado ao aplicativo. A aplicação usa somente a URL do projeto e a chave publicável no frontend; nenhuma chave administrativa ou senha do banco é exposta no GitHub Pages.
 
 As tabelas usam Row Level Security (RLS), e as alterações de entregas, entregadores, configurações e fechamentos são sincronizadas automaticamente após o usuário entrar com Supabase Auth.
+
+A sincronização manual aguarda os envios em andamento e informa sucesso somente após conferir a leitura do banco. Edições feitas durante a leitura permanecem na fila, e o fechamento só é confirmado depois de retornar do banco com um snapshot consistente. O resumo e o ticket médio do fechamento usam o dia escolhido no seletor, inclusive para dias anteriores.
 
 A criação de uma nova entrega reserva primeiro o número do pedido no banco por meio da função `xb_next_delivery_code()`. Isso evita que dois aparelhos recebam o mesmo número ao cadastrar pedidos ao mesmo tempo. Para manter essa garantia, novos pedidos precisam de conexão com a internet no momento do cadastro.
 

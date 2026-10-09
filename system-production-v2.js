@@ -289,13 +289,19 @@
       if (!cloud?.client) return notify('O banco ainda está conectando. Tente novamente em alguns segundos.', 'error');
       button.disabled = true;
       try {
-        await cloud.syncNow?.();
-        await cloud.pullNow?.();
+        const sent = await cloud.syncNow?.();
+        if (sent !== true || Number(cloud.pendingChanges || 0) > 0) {
+          throw new Error(cloud.state?.lastError || 'Ainda existem alterações aguardando envio ao banco. Tente novamente.');
+        }
+        const received = await cloud.pullNow?.();
+        if (received !== true || Number(cloud.pendingChanges || 0) > 0) {
+          throw new Error(cloud.state?.lastError || 'Não foi possível conferir todos os dados do banco. Tente sincronizar novamente.');
+        }
         updateSyncUi();
         notify('Sincronização concluída.');
       } catch (error) {
         console.error('[X-Burguer] Sincronização manual:', error);
-        notify('Não foi possível concluir a sincronização agora.', 'error');
+        notify(String(error?.message || 'Não foi possível concluir a sincronização agora.'), 'error');
       } finally {
         button.disabled = false;
       }
