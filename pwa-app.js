@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20260930-trash-ui-v8';
+  const APP_VERSION = '20261009-open-day-v1';
 
   let deferredPrompt = null;
   let installButton = null;

@@ -86,17 +86,29 @@ assert.deepStrictEqual(
   'Últimos 7 dias devem incluir exatamente sete dias de calendário'
 );
 // Um dia anterior continua visível enquanto não existir fechamento explícito.
+context.db.settings = { activeBusinessDate: '2026-09-11' };
 context.db.deliveries = [
-  { id: 'open-old', createdAt: '2026-09-11T15:00:00Z' },
-  { id: 'today', createdAt: '2026-09-12T15:00:00Z' },
-  { id: 'closed-old', createdAt: '2026-09-10T15:00:00Z' }
+  // O pedido foi criado depois da meia-noite, mas continua no dia operacional aberto.
+  { id: 'open-old', businessDate: '2026-09-11', createdAt: '2026-09-12T04:30:00Z' },
+  { id: 'today', businessDate: '2026-09-12', createdAt: '2026-09-12T15:00:00Z' },
+  { id: 'closed-old', businessDate: '2026-09-10', createdAt: '2026-09-10T15:00:00Z' }
 ];
 context.db.closings = [{ date: '2026-09-10' }];
 assert.deepStrictEqual(
   M.filterRange(context.db.deliveries, 'today').map(item => item.id),
   ['open-old', 'today'],
-  'O filtro padrão não pode esconder um dia anterior ainda não finalizado'
+  'O filtro padrão não pode esconder o dia operacional aberto nem as entregas de hoje'
 );
+assert.strictEqual(M.activeOperationalDayKey(), '2026-09-11',
+  'A virada da meia-noite não deve trocar o dia operacional sem fechamento');
+assert.deepStrictEqual(context.todayDeliveries().map(item => item.id), ['open-old'],
+  'Dashboard e operação devem continuar mostrando o dia operacional aberto');
+context.db.closings.push({ date: '2026-09-11' });
+context.db.settings.activeBusinessDate = '2026-09-12';
+assert.strictEqual(M.activeOperationalDayKey(), '2026-09-12',
+  'Depois de finalizar o dia, a operação passa para o próximo dia aberto');
+assert.deepStrictEqual(context.todayDeliveries().map(item => item.id), ['today'],
+  'Após finalizar, as métricas devem passar ao novo dia operacional');
 context.Date = RealDate;
 
 // Soma monetária em centavos: não pode acumular resíduos de ponto flutuante.

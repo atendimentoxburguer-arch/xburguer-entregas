@@ -9,11 +9,11 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>X-Burguer Entregas</title>
-  <link rel="manifest" href="./manifest.webmanifest?v=20260930-trash-ui-v8">
+  <link rel="manifest" href="./manifest.webmanifest?v=20261009-open-day-v1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260930-trash-ui-v8">
+  <link rel="stylesheet" href="./styles.css?v=20261009-open-day-v1">
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
 </head>
 <body>
@@ -187,7 +187,7 @@
         <section class="page" id="page-deliveries">
           <div class="page-head"><div><div class="eyebrow page-eyebrow"><i data-lucide="bike"></i>OPERAÇÃO</div><h1>Entregas</h1><p>Acompanhe status, valores, pagamento e responsável de cada entrega.</p></div><div class="actions"><button class="btn btn-light" id="exportCsvBtn"><i data-lucide="file-down"></i>Exportar CSV</button><button class="btn btn-light" id="deliveryTrashBtn"><i data-lucide="trash-2"></i>Lixeira</button><button class="btn btn-primary" data-go="newDelivery"><i data-lucide="plus"></i>Nova entrega</button></div></div>
           <div class="stats" id="deliveryStats"></div>
-          <div class="table-toolbar"><div class="search-control"><i data-lucide="search"></i><input id="deliverySearch" placeholder="Buscar cliente, endereço ou entregador..."></div><div class="toolbar-filters"><select id="statusFilter" aria-label="Filtrar por status"><option value="">Todos os status</option><option>Aguardando</option><option>Em rota</option><option>Entregue</option><option>Cancelada</option></select><select id="dateFilter" aria-label="Filtrar por período"><option value="today">Hoje + dias em aberto</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="all">Todo período</option></select></div></div>
+          <div class="table-toolbar"><div class="search-control"><i data-lucide="search"></i><input id="deliverySearch" placeholder="Buscar cliente, endereço ou entregador..."></div><div class="toolbar-filters"><select id="statusFilter" aria-label="Filtrar por status"><option value="">Todos os status</option><option>Aguardando</option><option>Em rota</option><option>Entregue</option><option>Cancelada</option></select><select id="dateFilter" aria-label="Filtrar por período"><option value="today">Dia operacional + dias em aberto</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="all">Todo período</option></select></div></div>
           <div class="card card-table"><div class="table-wrap" id="deliveriesTable"></div></div>
         </section>
 
@@ -245,6 +245,6 @@
   </div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
-  <script src="./app.js?v=20260930-trash-ui-v8"></script>
+  <script src="./app.js?v=20261009-open-day-v1"></script>
 </body>
 </html>

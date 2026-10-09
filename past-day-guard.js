@@ -26,7 +26,7 @@
   function groupRows(rows) {
     const groups = new Map();
     rows.forEach(item => {
-      const key = dayKey(item.createdAt);
+      const key = String(item?.businessDate || dayKey(item?.createdAt));
       const list = groups.get(key) || [];
       list.push(item);
       groups.set(key, list);
@@ -64,7 +64,7 @@
         ${typeof icon === 'function' ? icon('triangle-alert') : ''}
         <div>
           <strong>${rows.length === 1 ? 'Existe um registro de um dia anterior ainda aberto' : 'Existem registros de dias anteriores ainda abertos'}</strong>
-          <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Os registros permanecem disponíveis até você finalizar cada dia.</span>
+          <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Novas entregas continuam vinculadas ao dia operacional aberto até você clicar em Finalizar dia. A virada da meia-noite não finaliza nem apaga entregas.</span>
         </div>
       </div>
       ${compact ? '' : '<button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver dias em aberto</button>'}
