@@ -553,7 +553,7 @@ function paymentTotals(items) {
 
 function renderClosing() {
   const closingDay = window.XBClosingContinuity?.activeDay?.() || dateKey();
-  const today = (db.deliveries || []).filter(item => dateKey(new Date(item.createdAt)) === closingDay);
+  const today = (db.deliveries || []).filter(item => String(item.businessDate || (window.XBMetrics?.dayKey?.(item.createdAt) || dateKey(new Date(item.createdAt)))) === closingDay);
   const done = delivered(today);
   const pending = today.filter(item => ['Aguardando', 'Em rota'].includes(item.status));
   const orders = done.reduce((sum, item) => sum + Number(item.orderValue || 0), 0);
