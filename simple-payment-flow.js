@@ -102,7 +102,7 @@
       summary.innerHTML = `<div class="summary-list">
         <div class="summary-row"><span>Pagamentos a conferir</span><b>${paymentPending.length}</b></div>
         <div class="summary-row"><span>Pagos online aguardando entrega</span><b>${onlinePending.length}</b></div>
-        <div class="summary-row"><span>Entregues hoje</span><b>${done.length}</b></div>
+        <div class="summary-row"><span>Entregues no dia operacional</span><b>${done.length}</b></div>
         <div class="summary-row total"><span>Taxas dos entregadores</span><b>${money(fees)}</b></div>
       </div>`;
     }
