@@ -48,18 +48,33 @@
   function activeOperationalDayKey() {
     const today = dayKey();
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
-    const open = [...new Set((db.deliveries || []).map(item => businessDayKey(item)).filter(key => key && key <= today && !closed.has(key)))].sort();
-    return open[0] || String(db.settings?.activeBusinessDate || today);
+    // O primeiro dia sem fechamento explícito continua sendo o dia operacional,
+    // mesmo quando os pedidos são criados depois da meia-noite.
+    const open = [...new Set((db.deliveries || [])
+      .map(item => businessDayKey(item))
+      .filter(key => key && !closed.has(key)))].sort();
+    if (open.length) return open[0];
+
+    const configured = String(db.settings?.activeBusinessDate || '').trim();
+    if (configured && !closed.has(configured)) return configured;
+
+    const closedDates = [...closed].filter(Boolean).sort();
+    const nextAfterClosing = closedDates.length ? addDaysKey(closedDates[closedDates.length - 1], 1) : today;
+    return nextAfterClosing > today ? nextAfterClosing : today;
   }
 
   function openOperationalDayKeys() {
     const today = dayKey();
     const closed = new Set((db.closings || []).map(item => String(item?.date || '')));
     const keys = new Set([today]);
+    // Mantém visíveis todos os dias ainda abertos, incluindo o dia operacional
+    // ativo e datas posteriores que possam ter sido iniciadas após um fechamento.
     (db.deliveries || []).forEach(item => {
       const key = businessDayKey(item);
-      if (key && key < today && !closed.has(key)) keys.add(key);
+      if (key && !closed.has(key)) keys.add(key);
     });
+    const active = activeOperationalDayKey();
+    if (active && !closed.has(active)) keys.add(active);
     return keys;
   }
 
@@ -69,10 +84,7 @@
     const today = dayKey();
     if (range === 'today') {
       const openDays = openOperationalDayKeys();
-      return list.filter(item => {
-        const key = businessDayKey(item);
-        return key === today || openDays.has(key);
-      });
+      return list.filter(item => openDays.has(businessDayKey(item)));
     }
     const days = Math.max(1, Math.floor(numberValue(range) || 1));
     const start = addDaysKey(today, -(days - 1));
@@ -112,15 +124,18 @@
 
   function selectedReportDelivered() {
     const specific = window.XBReportDateFilter?.selectedDate || '';
-    if (specific) return forDay(db.deliveries || [], specific).filter(isDelivered);
-    return filterRangeSafe((db.deliveries || []).filter(isDelivered), document.getElementById('reportRange')?.value || '7');
+    const deliveredRows = (db.deliveries || []).filter(isDelivered);
+    if (specific) return forDay(deliveredRows, specific);
+    const bounds = periodKeys(document.getElementById('reportRange')?.value || '7');
+    return bounds ? itemsBetween(deliveredRows, bounds) : deliveredRows;
   }
 
   function selectedReportFees() {
     const specific = window.XBReportDateFilter?.selectedDate || '';
     const feeItems = (db.deliveries || []).filter(isFeePayable);
     if (specific) return forDay(feeItems, specific);
-    return filterRangeSafe(feeItems, document.getElementById('reportRange')?.value || '7');
+    const bounds = periodKeys(document.getElementById('reportRange')?.value || '7');
+    return bounds ? itemsBetween(feeItems, bounds) : feeItems;
   }
 
   function stats(items) {
@@ -233,23 +248,47 @@
     if (detailNode && detail !== undefined) detailNode.textContent = detail;
   }
 
+  function setStatAt(containerId, index, label, value, detail) {
+    const cards = [...(document.getElementById(containerId)?.querySelectorAll('.stat') || [])];
+    const card = cards[index];
+    if (!card) return;
+    const labelNode = card.querySelector('.stat-label');
+    const valueNode = card.querySelector('.stat-value');
+    const detailNode = card.querySelector('.stat-detail');
+    if (labelNode) labelNode.textContent = label;
+    if (valueNode) valueNode.textContent = String(value);
+    if (detailNode && detail !== undefined) detailNode.textContent = detail;
+  }
+
   function patchDashboard() {
-    const data = stats(forDay(db.deliveries || [], dayKey()));
-    setStat('dashboardStats', 'Entregas hoje', data.total, 'Total');
-    setStat('dashboardStats', 'Pagamentos a conferir', data.paymentPending, 'Pendentes');
-    setStat('dashboardStats', 'Pagos online', data.onlinePending, 'Aguardando entrega');
-    setStat('dashboardStats', 'Entregues', data.delivered, 'Hoje');
-    setStat('dashboardStats', 'Pedidos entregues', money(data.revenue), 'Hoje');
-    setStat('dashboardStats', 'Ticket médio', money(data.ticket), 'Hoje');
+    const operationalDay = activeOperationalDayKey();
+    const calendarDay = dayKey();
+    const dayLabel = operationalDay === calendarDay
+      ? 'Hoje'
+      : `Dia operacional ${operationalDay.split('-').reverse().join('/')} · ainda aberto`;
+    const data = stats(forDay(db.deliveries || [], operationalDay));
+
+    // Atualiza os cards pela posição para não depender de um rótulo que outro
+    // módulo possa renomear durante a renderização.
+    setStatAt('dashboardStats', 0, 'Entregas do dia', data.total, dayLabel);
+    setStatAt('dashboardStats', 1, 'Pagamentos a conferir', data.paymentPending, 'Pendentes');
+    setStatAt('dashboardStats', 2, 'Pagos online', data.onlinePending, 'Aguardando entrega');
+    setStatAt('dashboardStats', 3, 'Entregues', data.delivered, dayLabel);
+    setStatAt('dashboardStats', 4, 'Pedidos entregues', money(data.revenue), dayLabel);
+    setStat('dashboardStats', 'Ticket médio', money(data.ticket), dayLabel);
 
     const summaryRows = [...(document.getElementById('operationSummary')?.querySelectorAll('.summary-row') || [])];
     summaryRows.forEach(row => {
-      const label = row.querySelector('span')?.textContent.trim();
+      const labelNode = row.querySelector('span');
+      const label = labelNode?.textContent.trim();
       const value = row.querySelector('b');
       if (!value) return;
       if (label === 'Pagamentos a conferir') value.textContent = String(data.paymentPending);
       if (label === 'Pagos online aguardando entrega') value.textContent = String(data.onlinePending);
-      if (label === 'Entregues hoje') value.textContent = String(data.delivered);
+      if (label === 'Entregues hoje' || label === 'Entregues no dia operacional') {
+        value.textContent = String(data.delivered);
+        if (labelNode) labelNode.textContent = operationalDay === calendarDay ? 'Entregues hoje' : 'Entregues no dia operacional';
+      }
       if (label === 'Taxas dos entregadores' || label === 'Taxas realizadas') value.textContent = money(data.fees);
     });
   }
@@ -395,14 +434,18 @@
   }
 
   function patchClosing() {
-    const closing = (db.closings || []).find(item => item.date === dayKey());
+    const operationalDay = activeOperationalDayKey();
+    const dayLabel = operationalDay === dayKey()
+      ? 'Hoje'
+      : `Dia operacional ${operationalDay.split('-').reverse().join('/')}`;
+    const closing = (db.closings || []).find(item => item.date === operationalDay);
     const details = closing?.detailsV2;
     if (!details) {
-      const data = stats(forDay(db.deliveries || [], dayKey()));
-      setStat('closingStats', 'Entregas concluídas', data.delivered, 'Hoje');
-      setStat('closingStats', 'Valor total', money(data.revenue), 'Pedidos');
+      const data = stats(forDay(db.deliveries || [], operationalDay));
+      setStat('closingStats', 'Entregas concluídas', data.delivered, dayLabel);
+      setStat('closingStats', 'Valor total', money(data.revenue), 'Pedidos entregues');
       setStat('closingStats', 'Total em taxas', money(data.fees), data.cancelled ? 'Inclui canceladas' : 'Entregadores');
-      setStat('closingStats', 'Pendentes', data.pending, 'Hoje');
+      setStat('closingStats', 'Pendentes', data.pending, dayLabel);
       setStat('closingStats', 'Ticket médio', money(data.ticket), 'Pedidos entregues');
       return;
     }
@@ -411,10 +454,10 @@
     const revenue = fromCents(cents(details.totalOrderValue));
     const fees = fromCents(cents(details.totalFees));
     const ticket = deliveredCount ? fromCents(Math.round(cents(revenue) / deliveredCount)) : 0;
-    setStat('closingStats', 'Entregas concluídas', deliveredCount, 'Hoje');
-    setStat('closingStats', 'Valor total', money(revenue), 'Pedidos');
+    setStat('closingStats', 'Entregas concluídas', deliveredCount, dayLabel);
+    setStat('closingStats', 'Valor total', money(revenue), 'Pedidos entregues');
     setStat('closingStats', 'Total em taxas', money(fees), numberValue(details.cancelledDeliveries) ? 'Inclui canceladas' : 'Entregadores');
-    setStat('closingStats', 'Pendentes', Math.max(0, Math.floor(numberValue(details.pending))), 'Hoje');
+    setStat('closingStats', 'Pendentes', Math.max(0, Math.floor(numberValue(details.pending))), dayLabel);
     setStat('closingStats', 'Ticket médio', money(ticket), 'Pedidos entregues');
   }
 
@@ -444,7 +487,7 @@
   // Substitui cálculos de data por dias de calendário da operação, não por janelas de horas.
   if (typeof dateKey === 'function') dateKey = dayKey;
   if (typeof filterRange === 'function') filterRange = filterRangeSafe;
-  if (typeof todayDeliveries === 'function') todayDeliveries = () => forDay(db.deliveries || [], dayKey());
+  if (typeof todayDeliveries === 'function') todayDeliveries = () => forDay(db.deliveries || [], activeOperationalDayKey());
   if (typeof reportItems === 'function') reportItems = selectedReportDelivered;
 
   function installWrapper(name, patch) {
