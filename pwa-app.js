@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20261009-open-day-v1';
+  const APP_VERSION = '20261009-open-day-sync-v2';
 
   let deferredPrompt = null;
   let installButton = null;

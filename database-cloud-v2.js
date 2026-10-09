@@ -14,6 +14,7 @@
   let currentUser = null;
   let realtimeChannel = null;
   let syncTimer = null;
+  let syncRetryDelay = 5000;
   let pullTimer = null;
   let suppressCloudPush = false;
   let syncing = false;
@@ -478,8 +479,12 @@
       syncRequested = true;
       return false;
     }
+    clearTimeout(syncTimer);
+    syncTimer = null;
     if (!hasPending(queue)) {
       state.connected = true;
+      state.lastError = '';
+      syncRetryDelay = 5000;
       updateCloudStatus('Conectado');
       return true;
     }
@@ -489,6 +494,7 @@
     state.lastError = '';
     updateCloudStatus('Sincronizando...');
     const batch = clone(queue);
+    let succeeded = false;
 
     try {
       await syncSettings(batch.settingsRev);
@@ -507,6 +513,7 @@
       updateCloudStatus(hasPending(queue) ? 'Conectado · finalizando sincronização' : 'Conectado');
       window.dispatchEvent(new CustomEvent('xb:cloud-synced', { detail: { reason, syncedAt, pending: pendingCount(queue) } }));
       schedulePull('apos-envio');
+      succeeded = true;
       return true;
     } catch (error) {
       state.connected = false;
@@ -521,7 +528,16 @@
       syncRequested = false;
       if (shouldContinue && navigator.onLine) {
         clearTimeout(syncTimer);
-        syncTimer = setTimeout(() => pushPendingChanges('fila'), 250);
+        if (succeeded) {
+          syncRetryDelay = 5000;
+          syncTimer = setTimeout(() => pushPendingChanges('fila'), 250);
+        } else {
+          const delay = syncRetryDelay;
+          syncRetryDelay = Math.min(syncRetryDelay * 2, 60000);
+          syncTimer = setTimeout(() => pushPendingChanges('retry'), delay);
+        }
+      } else if (succeeded) {
+        syncRetryDelay = 5000;
       }
     }
   }
@@ -938,17 +954,20 @@
       return true;
     }
 
+    state.syncing = true;
     updateCloudStatus('Conectado · sincronizando');
     try {
       await firstSync();
       safeSet(VALIDATED_USER_KEY, user.id);
       state.connected = true;
+      state.syncing = false;
       updateCloudStatus('Conectado');
       subscribeRealtime();
       if (typeof showApp === 'function') showApp();
       window.dispatchEvent(new CustomEvent('xb:cloud-ready', { detail: { userId: user.id, source, offline: false } }));
       return true;
     } catch (error) {
+      state.syncing = false;
       console.error('[X-Burguer] Falha ao ativar sessão online:', error);
       if (canUseOfflineSession(user)) {
         state.connected = false;
@@ -1023,7 +1042,7 @@
 
   async function recoverOnline() {
     if (!client) return;
-    updateCloudStatus('Internet restaurada · sincronizando');
+    updateCloudStatus('Reconectando ao banco...');
     const { data } = await client.auth.getSession();
     const user = data?.session?.user;
     if (!user) {
