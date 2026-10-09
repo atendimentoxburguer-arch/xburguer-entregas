@@ -9,6 +9,7 @@
   const VALIDATED_USER_KEY = 'xb_cloud_validated_user_v1';
   const QUEUE_PREFIX = 'xb_cloud_queue_v2_';
   const PRE_MIGRATION_PREFIX = 'xb_cloud_pre_migration_backup_v2_';
+  const RECOVERY_PREFIX = 'xb_cloud_recovery_v1_';
 
   let client = null;
   let currentUser = null;
@@ -144,8 +145,62 @@
     rows.innerHTML = `
       <div class="db-status-row"><span>Conexão em nuvem</span><strong id="cloudConnectionStatus">Conectando...</strong></div>
       <div class="db-status-row"><span>Sincronização</span><strong id="cloudSyncMode">Automática</strong></div>
-      <div class="db-status-row"><span>Última sincronização</span><strong id="cloudLastSync">Ainda não sincronizado</strong></div>`;
+      <div class="db-status-row"><span>Última sincronização</span><strong id="cloudLastSync">Ainda não sincronizado</strong></div>
+      <div class="db-status-row" id="cloudErrorRow" hidden><span>Erro no envio</span><strong id="cloudLastError"></strong></div>`;
     [...rows.children].forEach(row => grid.appendChild(row));
+  }
+
+  function recoveryData() {
+    const raw = currentUser ? safeGet(`${RECOVERY_PREFIX}${currentUser.id}`) : null;
+    if (!raw) return { version: 1, entries: [] };
+    const data = JSON.parse(raw);
+    if (data.version !== 1 || !Array.isArray(data.entries)) {
+      throw new Error('Não foi possível ler as alterações preservadas deste aparelho.');
+    }
+    return data;
+  }
+
+  function preserveConflict(type, mode, key, revision, local, remote, reason) {
+    const data = recoveryData();
+    if (data.entries.some(item => item.type === type && item.mode === mode && item.key === key && item.revision === revision)) return false;
+    data.entries.push({ savedAt: nowIso(), type, mode, key, revision, reason, local: local ? clone(local) : null, remote: remote ? clone(remote) : null });
+    const serialized = JSON.stringify(data);
+    const storageKey = `${RECOVERY_PREFIX}${currentUser.id}`;
+    if (!safeSet(storageKey, serialized) || safeGet(storageKey) !== serialized) {
+      throw new Error('Sem espaço para preservar uma alteração antiga. Exporte um backup antes de tentar novamente.');
+    }
+    return true;
+  }
+
+  function updateRecoveryUi() {
+    const card = document.getElementById('databaseReadinessCard');
+    if (!card || !currentUser) return;
+    let entries;
+    try { entries = recoveryData().entries; } catch { return; }
+    let row = document.getElementById('cloudRecoveryNotice');
+    if (!row && entries.length) {
+      row = document.createElement('div');
+      row.id = 'cloudRecoveryNotice';
+      row.className = 'db-status-row xb-cloud-recovery';
+      row.innerHTML = '<span></span><button type="button" class="btn btn-light btn-sm">Baixar alterações preservadas</button>';
+      row.querySelector('button').addEventListener('click', () => {
+        const data = recoveryData();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `xburguer-alteracoes-preservadas-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+      card.appendChild(row);
+    }
+    if (row) {
+      row.hidden = !entries.length;
+      row.querySelector('span').textContent = `${entries.length} ${entries.length === 1 ? 'alteração antiga preservada' : 'alterações antigas preservadas'} para conferência. Os dias fechados usam os dados do banco.`;
+    }
   }
 
   function updateCloudStatus(message = state.message) {
@@ -155,6 +210,10 @@
     const connection = document.getElementById('cloudConnectionStatus');
     const last = document.getElementById('cloudLastSync');
     const mode = document.getElementById('cloudSyncMode');
+    const errorRow = document.getElementById('cloudErrorRow');
+    const errorText = document.getElementById('cloudLastError');
+    if (errorRow) errorRow.hidden = !state.lastError;
+    if (errorText) errorText.textContent = state.lastError;
 
     if (connection) {
       connection.textContent = state.message;
@@ -166,6 +225,7 @@
       const base = config.autoSync === false ? 'Manual' : 'Automática';
       mode.textContent = state.pending ? `${base} · ${state.pending} pendente${state.pending === 1 ? '' : 's'}` : base;
     }
+    updateRecoveryUi();
   }
 
   async function loadExternalScript(src) {
@@ -380,6 +440,71 @@
     persistQueue();
   }
 
+  function deliveryBusinessDay(item) {
+    if (item?.businessDate) return item.businessDate;
+    const date = new Date(item?.createdAt || '');
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type)?.value;
+    return `${value('year')}-${value('month')}-${value('day')}`;
+  }
+
+  async function reconcileClosedDayQueue(batch, snapshot) {
+    const deliveryKeys = [...new Set(['upserts', 'deletes'].flatMap(mode => activeBatchKeys(batch, mode, 'deliveries')))];
+    const closingKeys = ['upserts', 'deletes'].flatMap(mode => activeBatchKeys(batch, mode, 'closings'));
+    if (!deliveryKeys.length && !closingKeys.length) return;
+    let closings = snapshot?.closings;
+    let deliveries = snapshot?.deliveries;
+    if (!snapshot) {
+      closings = (await fetchAllRemoteRows('daily_closings', ['date'])).map(rowToClosing);
+      deliveries = [];
+      for (let start = 0; start < deliveryKeys.length; start += 200) {
+        const result = await client.from('deliveries').select('*').eq('user_id', currentUser.id).in('id', deliveryKeys.slice(start, start + 200));
+        if (result.error) throw result.error;
+        deliveries.push(...(result.data || []).map(rowToDelivery));
+      }
+    }
+    const remoteClosings = mapBy(closings, 'date');
+    const remoteDeliveries = mapBy(deliveries, 'id');
+    const replacements = [];
+    let preserved = 0;
+    for (const type of ['closings', 'deliveries']) {
+      for (const mode of ['upserts', 'deletes']) {
+        for (const key of activeBatchKeys(batch, mode, type)) {
+          const local = currentRecord(type, key);
+          const remote = (type === 'closings' ? remoteClosings : remoteDeliveries)[key];
+          if (type === 'deliveries' && !remoteClosings[deliveryBusinessDay(local)] && !remoteClosings[deliveryBusinessDay(remote)]) continue;
+          // Fechamentos são criados/reabertos pelos RPCs, nunca por uma fila antiga.
+          // Uma edição em dia já fechado fica preservada antes de aceitar o banco.
+          const identical = mode === 'upserts' && remote && recordSignature(type, local) === recordSignature(type, remote);
+          if (!identical && (mode === 'upserts' ? local : remote)) {
+            if (preserveConflict(type, mode, key, batch[mode][type][key], local, remote,
+              type === 'closings' ? 'Fechamento deve ser confirmado ou reaberto pelo banco.' : 'Entrega pertence a um dia já fechado no banco.')) preserved += 1;
+          }
+          replacements.push({ type, key, remote });
+          clearBatchEntries(batch, mode, type, [key]);
+        }
+      }
+    }
+    if (!replacements.length) return;
+    suppressCloudPush = true;
+    window.__xbApplyingRemoteSnapshot = true;
+    try {
+      for (const { type, key, remote } of replacements) {
+        const field = type === 'closings' ? 'date' : 'id';
+        db[type] = (db[type] || []).filter(item => String(item[field]) !== key);
+        if (remote) db[type].push(clone(remote));
+      }
+      save();
+      trackedSnapshot = snapshotForDiff();
+      if (typeof renderAll === 'function') renderAll();
+    } finally {
+      suppressCloudPush = false;
+      window.__xbApplyingRemoteSnapshot = false;
+    }
+    if (preserved) notify('Alterações antigas preservadas em Configurações → Banco de dados para conferência.');
+  }
+
   async function syncUpserts(batch, type) {
     const keys = activeBatchKeys(batch, 'upserts', type);
     if (!keys.length) return;
@@ -536,6 +661,7 @@
     let succeeded = false;
 
     try {
+      await reconcileClosedDayQueue(batch);
       await syncSettings(batch.settingsRev);
       await syncUpserts(batch, 'couriers');
       await syncUpserts(batch, 'deliveries');
@@ -727,6 +853,7 @@
   }
 
   async function applyRemoteSnapshot(snapshot) {
+    await reconcileClosedDayQueue(clone(queue), snapshot);
     // Alterações feitas enquanto as consultas estavam em trânsito têm prioridade
     // até serem confirmadas. Inclui edições existentes e exclusões, não só novos IDs.
     snapshot = clone(snapshot);
@@ -759,6 +886,7 @@
       suppressCloudPush = false;
       window.__xbApplyingRemoteSnapshot = false;
     }
+    if (!hasPending(queue)) state.lastError = '';
   }
 
   function recordTime(item, fallback = 0) {
@@ -845,14 +973,10 @@
 
   async function receiveRemoteSnapshot(reason) {
     if (!currentUser || !client || !navigator.onLine) return false;
-    if (syncing) {
-      const sent = await pushPendingChanges('aguardando-envio');
-      if (!sent) return false;
-    }
-    if (hasPending(queue)) {
-      const sent = await pushPendingChanges('antes-de-receber');
-      if (!sent || hasPending(queue)) return false;
-    }
+    // Um envio rejeitado não pode impedir a leitura dos fechamentos do banco.
+    // As alterações ainda pendentes são mescladas, sem anunciar sucesso no envio.
+    if (syncing || hasPending(queue)) await pushPendingChanges('antes-de-receber');
+    let uploadError = state.lastError;
 
     try {
       const fetchVersion = localChangeVersion;
@@ -871,7 +995,7 @@
         queueLegacyReconciliation(remote.snapshot);
         if (hasPending(queue)) {
           const sent = await pushPendingChanges('protecao-pos-gravacao');
-          if (!sent || hasPending(queue)) return false;
+          if (!sent) uploadError = state.lastError;
           remote = await fetchRemoteSnapshot();
         }
       }
@@ -880,13 +1004,13 @@
 
       await applyRemoteSnapshot(remote.snapshot);
       const syncedAt = nowIso();
-      state.connected = true;
+      state.lastError = hasPending(queue) ? (uploadError || state.lastError) : '';
+      state.connected = !state.lastError;
       state.lastSyncAt = syncedAt;
-      state.lastError = '';
       safeSet(LAST_SYNC_KEY, syncedAt);
-      updateCloudStatus(hasPending(queue) ? 'Conectado · alterações aguardando envio' : 'Conectado');
+      updateCloudStatus(state.lastError ? 'Dados recebidos · alterações aguardando envio' : (hasPending(queue) ? 'Conectado · alterações aguardando envio' : 'Conectado'));
       window.dispatchEvent(new CustomEvent('xb:cloud-pulled', { detail: { reason, syncedAt } }));
-      return true;
+      return !state.lastError;
     } catch (error) {
       state.connected = false;
       state.lastError = String(error?.message || error);
@@ -936,7 +1060,6 @@
 
     if (hasPending(queue)) {
       await pushPendingChanges('recuperacao-offline');
-      if (hasPending(queue)) throw new Error('Existem alterações locais aguardando sincronização');
       const refreshed = await fetchRemoteSnapshot();
       await applyRemoteSnapshot(refreshed.snapshot);
       return;
@@ -947,9 +1070,8 @@
       queueLegacyReconciliation(remote.snapshot);
       if (hasPending(queue)) {
         await pushPendingChanges('transicao-sincronizacao-v2');
-        if (hasPending(queue)) throw new Error('Não foi possível concluir a conciliação local');
       }
-      safeRemove(LEGACY_DIRTY_KEY);
+      if (!hasPending(queue)) safeRemove(LEGACY_DIRTY_KEY);
       const refreshed = await fetchRemoteSnapshot();
       await applyRemoteSnapshot(refreshed.snapshot);
       return;
@@ -1025,9 +1147,9 @@
     try {
       await firstSync();
       safeSet(VALIDATED_USER_KEY, user.id);
-      state.connected = true;
+      state.connected = !state.lastError;
       state.syncing = false;
-      updateCloudStatus('Conectado');
+      updateCloudStatus(state.lastError ? 'Dados recebidos · alterações aguardando envio' : (hasPending(queue) ? 'Conectado · alterações aguardando envio' : 'Conectado'));
       subscribeRealtime();
       if (typeof showApp === 'function') showApp();
       window.dispatchEvent(new CustomEvent('xb:cloud-ready', { detail: { userId: user.id, source, offline: false } }));
@@ -1155,6 +1277,7 @@
       syncNow: () => pushPendingChanges('manual'),
       pullNow: () => pullRemoteSnapshot('manual'),
       deleteDelivery: id => deleteDeliveryAuthoritatively(id),
+      recoveryData: () => clone(recoveryData()),
       get pendingChanges() { return pendingCount(queue); }
     };
 

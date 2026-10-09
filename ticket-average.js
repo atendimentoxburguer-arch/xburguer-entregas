@@ -26,14 +26,7 @@
   const previousRenderClosing = renderClosing;
   renderClosing = function xbRenderClosingWithAverage() {
     previousRenderClosing();
-    const key = window.XBClosingContinuity?.activeDay?.() || dateKey();
-    const details = (db.closings || []).find(item => item.date === key)?.detailsV2;
-    const rows = (db.deliveries || []).filter(item =>
-      String(item.businessDate || window.XBMetrics?.dayKey?.(item.createdAt) || dateKey(new Date(item.createdAt))) === key);
-    const average = details
-      ? (Number(details.totalDeliveries) > 0 ? Number(details.totalOrderValue) / Number(details.totalDeliveries) : 0)
-      : deliveredAverage(rows);
-    appendTicketStat('closingStats', average, 'Pedidos entregues');
+    appendTicketStat('closingStats', deliveredAverage(todayDeliveries()), 'Pedidos entregues');
     refreshIcons();
   };
 

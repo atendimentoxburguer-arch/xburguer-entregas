@@ -192,25 +192,4 @@ const corruptRevenue = JSON.parse(JSON.stringify(completeClosing));
 corruptRevenue.detailsV2.totalOrderValue = 31;
 assert.strictEqual(C.needsRepair(corruptRevenue), true, 'Faturamento divergente deve ser detectado');
 
-// O resumo do fechamento respeita a data escolhida, independentemente do dia
-// operacional ativo e de edições feitas depois do snapshot histórico.
-let selectedDay = '2026-10-04';
-context.Date = RealDate;
-context.XBClosingContinuity = { activeDay: () => selectedDay };
-context.db.deliveries = [{ id: 'current', businessDate: '2026-10-08', status: 'Entregue', orderValue: 99, fee: 6 }];
-const historyDetails = { ...JSON.parse(JSON.stringify(details)), totalOrderValue: 32 };
-context.db.closings = [{ date: '2026-10-04', detailsV2: historyDetails }];
-const closingCards = new Map(['Entregas concluídas', 'Valor total', 'Total em taxas', 'Pendentes', 'Ticket médio'].map(label => {
-  const nodes = { '.stat-label': { textContent: label }, '.stat-value': { textContent: '' }, '.stat-detail': { textContent: '' } };
-  return [label, { querySelector: selector => nodes[selector], nodes }];
-}));
-context.document.getElementById = id => id === 'closingStats' ? { querySelectorAll: () => [...closingCards.values()] } : null;
-context.renderClosing();
-assert.strictEqual(closingCards.get('Valor total').nodes['.stat-value'].textContent, 'R$ 32.00');
-assert.strictEqual(closingCards.get('Entregas concluídas').nodes['.stat-detail'].textContent, 'Dia operacional 04/10/2026');
-selectedDay = '2026-10-08';
-context.renderClosing();
-assert.strictEqual(closingCards.get('Valor total').nodes['.stat-value'].textContent, 'R$ 99.00');
-assert.strictEqual(closingCards.get('Ticket médio').nodes['.stat-value'].textContent, 'R$ 99.00');
-
-console.log('OK: testes de datas, quantidades, faturamento, taxas, cancelamentos, fechamento imutável e seleção de dias passaram.');
+console.log('OK: testes de datas, quantidades, faturamento, taxas, cancelamentos e fechamento imutável passaram.');

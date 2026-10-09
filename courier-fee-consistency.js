@@ -30,12 +30,8 @@
   }
 
   function repairInvalidFees() {
-    if (window.__xbApplyingRemoteSnapshot) return false;
-    const closedDays = new Set((db.closings || []).map(item => String(item.date)));
     let changed = false;
     (db.deliveries || []).forEach(item => {
-      const key = item.businessDate || window.XBMetrics?.dayKey?.(item.createdAt) || dateKey(new Date(item.createdAt));
-      if (closedDays.has(key)) return;
       if (normalizeDeliveryFee(item)) changed = true;
     });
     return changed;

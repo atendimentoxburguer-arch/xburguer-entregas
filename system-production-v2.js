@@ -289,11 +289,12 @@
       if (!cloud?.client) return notify('O banco ainda está conectando. Tente novamente em alguns segundos.', 'error');
       button.disabled = true;
       try {
-        const sent = await cloud.syncNow?.();
-        if (sent !== true || Number(cloud.pendingChanges || 0) > 0) {
-          throw new Error(cloud.state?.lastError || 'Ainda existem alterações aguardando envio ao banco. Tente novamente.');
-        }
+        await cloud.syncNow?.();
+        const uploadError = cloud.state?.lastError;
         const received = await cloud.pullNow?.();
+        if (cloud.state?.lastError || Number(cloud.pendingChanges || 0) > 0) {
+          throw new Error(cloud.state?.lastError || uploadError || 'Ainda existem alterações aguardando envio ao banco. Tente novamente.');
+        }
         if (received !== true || Number(cloud.pendingChanges || 0) > 0) {
           throw new Error(cloud.state?.lastError || 'Não foi possível conferir todos os dados do banco. Tente sincronizar novamente.');
         }
@@ -320,6 +321,10 @@
       .xb-cloud-badge.error{border-color:#ebc9cc;background:linear-gradient(135deg,#fff5f5,#fbe8e9);color:#9b2029}.xb-cloud-badge.error .xb-cloud-dot{background:#c92a35;box-shadow:0 0 0 3px rgba(201,42,53,.12)}
       .xb-cloud-badge.offline{border-color:#ebc9cc;background:linear-gradient(135deg,#fff5f5,#fbe8e9);color:#9b2029}.xb-cloud-badge.offline .xb-cloud-dot{background:#c92a35;box-shadow:0 0 0 3px rgba(201,42,53,.12)}
       .xb-cloud-badge.connecting .xb-cloud-dot{animation:xbCloudPulse 1.2s ease-in-out infinite}
+      .database-ready-card .db-status-row[hidden]{display:none}
+      .database-ready-card .xb-cloud-recovery{flex-wrap:wrap;margin-top:14px}
+      .database-ready-card .xb-cloud-recovery span{flex:1 1 220px}
+      .database-ready-card #cloudLastError{overflow-wrap:anywhere;color:#9b2029;max-width:75%}
       @keyframes xbCloudPulse{0%,100%{opacity:.45;transform:scale(.8)}50%{opacity:1;transform:scale(1.12)}}
       @media(max-width:760px){.xb-cloud-badge{padding:0 8px}.xb-cloud-label{display:none}.xb-cloud-badge{width:34px;justify-content:center}}
     `;

@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20261009-closing-sync-v3';
+  const APP_VERSION = '20261009-sync-recovery-v4';
 
   let deferredPrompt = null;
   let installButton = null;

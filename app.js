@@ -1,5 +1,5 @@
 (() => {
-  const version = '20261009-closing-sync-v3';
+  const version = '20261009-sync-recovery-v4';
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.
