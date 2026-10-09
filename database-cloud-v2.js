@@ -18,6 +18,11 @@
   let pullTimer = null;
   let suppressCloudPush = false;
   let syncing = false;
+  let pushInFlight = null;
+  let pullInFlight = null;
+  let localChangeVersion = 0;
+  let revisionSequence = 0;
+  const revisionSession = Math.random().toString(36).slice(2);
   let syncRequested = false;
   let trackedSnapshot = null;
   let queue = emptyQueue();
@@ -33,6 +38,7 @@
   };
 
   const nowIso = () => new Date().toISOString();
+  const newRevision = () => `${nowIso()}:${revisionSession}:${++revisionSequence}`;
   const clone = value => JSON.parse(JSON.stringify(value));
   const isConfigured = () => Boolean(
     config.enabled &&
@@ -231,7 +237,7 @@
     return JSON.stringify(a) === JSON.stringify(b);
   }
 
-  function markQueue(type, key, mode, revision = nowIso()) {
+  function markQueue(type, key, mode, revision = newRevision()) {
     const opposite = mode === 'upserts' ? 'deletes' : 'upserts';
     queue[mode][type][String(key)] = revision;
     delete queue[opposite][type][String(key)];
@@ -239,7 +245,7 @@
 
   function queueDiff(previous, next) {
     if (!currentUser) return;
-    const revision = nowIso();
+    const revision = newRevision();
     if (!sameValue(previous?.settings, next.settings)) queue.settingsRev = revision;
 
     ['couriers', 'deliveries', 'closings'].forEach(type => {
@@ -257,7 +263,7 @@
 
   function queueFullLocalSnapshot() {
     if (!currentUser) return;
-    const revision = nowIso();
+    const revision = newRevision();
     queue.settingsRev = revision;
     (db.couriers || []).forEach(item => markQueue('couriers', item.id, 'upserts', revision));
     (db.deliveries || []).forEach(item => markQueue('deliveries', item.id, 'upserts', revision));
@@ -380,6 +386,7 @@
 
     const tombstoned = new Set();
     const remoteUpdatedAt = new Map();
+    const remoteDeliveries = new Map();
 
     if (type === 'deliveries') {
       const tombstoneResult = await client
@@ -395,11 +402,14 @@
       // ou editada em outro aparelho.
       const remoteResult = await client
         .from('deliveries')
-        .select('id,updated_at')
+        .select('*')
         .eq('user_id', currentUser.id)
         .in('id', keys);
       if (remoteResult.error) throw remoteResult.error;
-      (remoteResult.data || []).forEach(row => remoteUpdatedAt.set(String(row.id), row.updated_at));
+      (remoteResult.data || []).forEach(row => {
+        remoteUpdatedAt.set(String(row.id), row.updated_at);
+        remoteDeliveries.set(String(row.id), rowToDelivery(row));
+      });
     }
 
     const rows = [];
@@ -422,6 +432,13 @@
       }
 
       if (type === 'deliveries') {
+        // Reenviar uma linha já confirmada aciona o bloqueio de dias fechados.
+        // Apenas a revisão idêntica é dispensada; edições reais continuam na fila.
+        const remoteItem = remoteDeliveries.get(String(key));
+        if (remoteItem && recordSignature(type, remoteItem) === recordSignature(type, item)) {
+          clearBatchEntries(batch, 'upserts', type, [key]);
+          return;
+        }
         const remoteTimestamp = remoteUpdatedAt.get(String(key));
         const localTimestamp = item.updatedAt || item.createdAt;
         if (remoteTimestamp && localTimestamp) {
@@ -470,6 +487,28 @@
   }
 
   async function pushPendingChanges(reason = 'auto') {
+    if (pushInFlight) return pushInFlight;
+    pushInFlight = drainPendingChanges(reason);
+    try {
+      return await pushInFlight;
+    } finally {
+      pushInFlight = null;
+    }
+  }
+
+  async function drainPendingChanges(reason) {
+    // Um fechamento deve aguardar inclusive as edições feitas durante o envio.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const sent = await pushPendingBatch(reason);
+      if (!sent) return false;
+      if (!hasPending(queue)) return true;
+    }
+    state.lastError = 'Existem novas alterações em andamento. Aguarde a sincronização terminar e tente novamente.';
+    updateCloudStatus('Alterações aguardando sincronização');
+    return false;
+  }
+
+  async function pushPendingBatch(reason) {
     if (!currentUser || !client || suppressCloudPush || config.autoSync === false) return false;
     if (!navigator.onLine) {
       updateCloudStatus('Offline · alterações guardadas no aparelho');
@@ -506,6 +545,7 @@
       await syncDeletes(batch, 'couriers');
 
       const syncedAt = nowIso();
+      localChangeVersion += 1;
       state.connected = true;
       state.lastSyncAt = syncedAt;
       safeSet(LAST_SYNC_KEY, syncedAt);
@@ -687,6 +727,26 @@
   }
 
   async function applyRemoteSnapshot(snapshot) {
+    // Alterações feitas enquanto as consultas estavam em trânsito têm prioridade
+    // até serem confirmadas. Inclui edições existentes e exclusões, não só novos IDs.
+    snapshot = clone(snapshot);
+    if (queue.settingsRev) {
+      snapshot.settings = {
+        ...snapshot.settings,
+        storeName: db.settings?.storeName,
+        defaultFee: db.settings?.defaultFee
+      };
+    }
+    ['couriers', 'deliveries', 'closings'].forEach(type => {
+      const keyField = type === 'closings' ? 'date' : 'id';
+      const records = mapBy(snapshot[type], keyField);
+      Object.keys(queue.upserts[type]).forEach(key => {
+        const localItem = currentRecord(type, key);
+        if (localItem) records[key] = clone(localItem);
+      });
+      Object.keys(queue.deletes[type]).forEach(key => { delete records[key]; });
+      snapshot[type] = Object.values(records);
+    });
     suppressCloudPush = true;
     window.__xbApplyingRemoteSnapshot = true;
     try {
@@ -726,7 +786,7 @@
 
   function queueLegacyReconciliation(remote) {
     if (!currentUser) return;
-    const revision = nowIso();
+    const revision = newRevision();
     const localFallback = new Date(db.settings?.lastLocalMutationAt || 0).getTime() || 0;
     const remoteMaps = {
       couriers: mapBy(remote.couriers, 'id'),
@@ -774,10 +834,20 @@
   }
 
   async function pullRemoteSnapshot(reason = 'remote') {
+    if (pullInFlight) return pullInFlight;
+    pullInFlight = receiveRemoteSnapshot(reason);
+    try {
+      return await pullInFlight;
+    } finally {
+      pullInFlight = null;
+    }
+  }
+
+  async function receiveRemoteSnapshot(reason) {
     if (!currentUser || !client || !navigator.onLine) return false;
     if (syncing) {
-      schedulePull(reason);
-      return false;
+      const sent = await pushPendingChanges('aguardando-envio');
+      if (!sent) return false;
     }
     if (hasPending(queue)) {
       const sent = await pushPendingChanges('antes-de-receber');
@@ -785,7 +855,14 @@
     }
 
     try {
+      const fetchVersion = localChangeVersion;
       let remote = await fetchRemoteSnapshot();
+      if (fetchVersion !== localChangeVersion && !hasPending(queue)) {
+        // Outro envio terminou depois que a leitura começou: não aplique essa
+        // resposta antiga por cima de dados já confirmados em outro pedido.
+        schedulePull('leitura-desatualizada');
+        return false;
+      }
 
       // Defesa contra o caso mais perigoso: um pull chega logo depois de uma
       // gravação local, antes que a fila tenha sido reconhecida. Se a alteração
@@ -801,25 +878,13 @@
 
       if (!remote.hasRemoteState && localHasMeaningfulData()) return false;
 
-      // A entrega recém-criada pode estar localmente mais nova que o snapshot remoto.
-      // Antes de aplicar qualquer pull, preserve todos os IDs ainda pendentes na fila.
-      const pendingDeliveryIds = new Set(Object.keys(queue?.upserts?.deliveries || {}));
-      if (pendingDeliveryIds.size) {
-        const localDeliveries = (db.deliveries || []).filter(item => pendingDeliveryIds.has(String(item.id)));
-        const remoteIds = new Set((remote.snapshot?.deliveries || []).map(item => String(item.id)));
-        remote.snapshot.deliveries = [
-          ...(remote.snapshot.deliveries || []),
-          ...localDeliveries.filter(item => !remoteIds.has(String(item.id)))
-        ];
-      }
-
       await applyRemoteSnapshot(remote.snapshot);
       const syncedAt = nowIso();
       state.connected = true;
       state.lastSyncAt = syncedAt;
       state.lastError = '';
       safeSet(LAST_SYNC_KEY, syncedAt);
-      updateCloudStatus('Conectado');
+      updateCloudStatus(hasPending(queue) ? 'Conectado · alterações aguardando envio' : 'Conectado');
       window.dispatchEvent(new CustomEvent('xb:cloud-pulled', { detail: { reason, syncedAt } }));
       return true;
     } catch (error) {
@@ -854,6 +919,7 @@
       localSave();
       const after = snapshotForDiff();
       if (!suppressCloudPush && currentUser) {
+        localChangeVersion += 1;
         db.settings = db.settings || {};
         db.settings.lastLocalMutationAt = nowIso();
         localSave();
@@ -910,7 +976,7 @@
       return;
     }
 
-    queue.settingsRev = nowIso();
+    queue.settingsRev = newRevision();
     persistQueue();
     await pushPendingChanges('inicializacao');
     const initialized = await fetchRemoteSnapshot();

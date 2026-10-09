@@ -48,6 +48,9 @@ jobs:
       - name: Test application shell
         run: node tests/app-shell.test.cjs
 
+      - name: Test cloud synchronization and closing
+        run: node --test tests/cloud-sync.test.cjs
+
   deploy:
     needs: validate
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')

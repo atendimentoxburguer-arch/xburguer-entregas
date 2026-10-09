@@ -434,7 +434,7 @@
   }
 
   function patchClosing() {
-    const operationalDay = activeOperationalDayKey();
+    const operationalDay = window.XBClosingContinuity?.activeDay?.() || activeOperationalDayKey();
     const dayLabel = operationalDay === dayKey()
       ? 'Hoje'
       : `Dia operacional ${operationalDay.split('-').reverse().join('/')}`;
