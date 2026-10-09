@@ -39,6 +39,8 @@ As tabelas usam Row Level Security (RLS), e as alterações de entregas, entrega
 
 A sincronização manual aguarda os envios em andamento e informa sucesso somente após conferir a leitura do banco. Edições feitas durante a leitura permanecem na fila, e o fechamento só é confirmado depois de retornar do banco com um snapshot consistente. O resumo e o ticket médio do fechamento usam o dia escolhido no seletor, inclusive para dias anteriores.
 
+Uma alteração local rejeitada não impede receber os dados do banco. Filas antigas de fechamento ou de entregas em dias já fechados são conciliadas com os registros confirmados: qualquer conflito é gravado e conferido no armazenamento deste aparelho antes de sair da fila. Em **Configurações > Banco de dados**, o botão **Baixar alterações preservadas** exporta essas cópias em JSON para conferência. Elas não reabrem dias nem alteram pagamentos automaticamente. Se a cópia não puder ser gravada, a alteração permanece na fila; erros de outros envios continuam visíveis nesse painel.
+
 A criação de uma nova entrega reserva primeiro o número do pedido no banco por meio da função `xb_next_delivery_code()`. Isso evita que dois aparelhos recebam o mesmo número ao cadastrar pedidos ao mesmo tempo. Para manter essa garantia, novos pedidos precisam de conexão com a internet no momento do cadastro.
 
 ## Acesso em produção
