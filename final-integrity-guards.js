@@ -136,10 +136,13 @@
     const button = document.getElementById('closeDayBtn');
     if (!button || button.classList.contains('hidden')) return;
     const today = dayKey(new Date());
-    const activeDay = window.XBClosingContinuity?.activeDay?.() || today;
+    const activeDay = window.XBClosingContinuity?.activeDay?.() || window.XBMetrics?.activeOperationalDayKey?.() || today;
     const pending = (db.deliveries || []).filter(item => String(item?.businessDate || dayKey(item.createdAt)) === activeDay && (item.status === 'Aguardando' || item.status === 'Em rota'));
-    button.disabled = pending.length > 0;
-    button.title = pending.length ? `Existem ${pending.length} entrega(s) pendente(s). Conclua ou cancele antes de fechar.` : 'Finalizar e conferir o dia no banco';
+    const futureDay = activeDay > today;
+    button.disabled = futureDay || pending.length > 0;
+    button.title = futureDay
+      ? `O dia operacional ${activeDay.split('-').reverse().join('/')} ainda é uma data futura.`
+      : (pending.length ? `Existem ${pending.length} entrega(s) pendente(s). Conclua ou cancele antes de fechar.` : 'Finalizar e conferir o dia no banco');
   }
 
   function refreshVisible() {
