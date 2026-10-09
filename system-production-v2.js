@@ -229,8 +229,14 @@
       };
     }
     if (!cloud?.configured || !cloud?.client) return { klass: 'connecting', text: 'Conectando banco...' };
-    if (state.syncing || /sincronizando/i.test(String(state.message || ''))) {
+    if (state.syncing) {
       return { klass: 'syncing', text: pending ? `Sincronizando · ${pending}` : 'Sincronizando...' };
+    }
+    if (state.lastError) {
+      return {
+        klass: 'error',
+        text: pending ? `Falha · ${pending} pendente${pending === 1 ? '' : 's'}` : 'Falha na sincronização'
+      };
     }
     if (pending) return { klass: 'pending', text: `${pending} alteração${pending === 1 ? '' : 'ões'} pendente${pending === 1 ? '' : 's'}` };
     if (state.connected) return { klass: 'online', text: 'Banco online' };
@@ -246,9 +252,12 @@
       if (badge.className !== nextClass) badge.className = nextClass;
       const label = badge.querySelector('.xb-cloud-label');
       if (label && label.textContent !== visual.text) label.textContent = visual.text;
-      const nextTitle = window.XBCloud?.state?.lastSyncAt
-        ? `Última sincronização: ${new Date(window.XBCloud.state.lastSyncAt).toLocaleString('pt-BR')}`
-        : visual.text;
+      const cloudState = window.XBCloud?.state || {};
+      const lastSync = cloudState.lastSyncAt
+        ? `Última sincronização: ${new Date(cloudState.lastSyncAt).toLocaleString('pt-BR')}`
+        : '';
+      const nextTitle = [cloudState.lastError ? `Erro: ${cloudState.lastError}` : '', lastSync, visual.text]
+        .filter(Boolean).join(' · ');
       if (badge.title !== nextTitle) badge.title = nextTitle;
     }
 
@@ -302,6 +311,7 @@
       .xb-cloud-dot{width:8px;height:8px;border-radius:50%;background:#a59a94;box-shadow:0 0 0 3px rgba(165,154,148,.12)}
       .xb-cloud-badge.online{border-color:#c8e7d6;background:linear-gradient(135deg,#f1fbf5,#e7f6ed);color:#146d47}.xb-cloud-badge.online .xb-cloud-dot{background:#1a9b62;box-shadow:0 0 0 3px rgba(26,155,98,.12)}
       .xb-cloud-badge.syncing,.xb-cloud-badge.pending{border-color:#edd8a7;background:linear-gradient(135deg,#fff9e9,#fff1ca);color:#88600e}.xb-cloud-badge.syncing .xb-cloud-dot,.xb-cloud-badge.pending .xb-cloud-dot{background:#d99415;box-shadow:0 0 0 3px rgba(217,148,21,.13)}
+      .xb-cloud-badge.error{border-color:#ebc9cc;background:linear-gradient(135deg,#fff5f5,#fbe8e9);color:#9b2029}.xb-cloud-badge.error .xb-cloud-dot{background:#c92a35;box-shadow:0 0 0 3px rgba(201,42,53,.12)}
       .xb-cloud-badge.offline{border-color:#ebc9cc;background:linear-gradient(135deg,#fff5f5,#fbe8e9);color:#9b2029}.xb-cloud-badge.offline .xb-cloud-dot{background:#c92a35;box-shadow:0 0 0 3px rgba(201,42,53,.12)}
       .xb-cloud-badge.connecting .xb-cloud-dot{animation:xbCloudPulse 1.2s ease-in-out infinite}
       @keyframes xbCloudPulse{0%,100%{opacity:.45;transform:scale(.8)}50%{opacity:1;transform:scale(1.12)}}

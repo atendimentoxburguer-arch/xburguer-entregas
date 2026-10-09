@@ -51,7 +51,7 @@
     document.head.appendChild(style);
   }
 
-  function alertHtml(rows, compact = false) {
+  function alertHtml(rows) {
     const groups = groupRows(rows);
     const dates = groups.map(([key, items]) => {
       const pending = items.filter(isPending).length;
@@ -67,11 +67,11 @@
           <span>${dates}. Pedido${rows.length === 1 ? '' : 's'}: ${codes}${extra}. Novas entregas continuam vinculadas ao dia operacional aberto até você clicar em Finalizar dia. A virada da meia-noite não finaliza nem apaga entregas.</span>
         </div>
       </div>
-      ${compact ? '' : '<button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver dias em aberto</button>'}
+      <button type="button" class="btn btn-light btn-sm" data-open-past-pending>Ver dias em aberto</button>
     `;
   }
 
-  function ensureAlert(id, anchor, rows, compact = false) {
+  function ensureAlert(id, anchor, rows) {
     let node = document.getElementById(id);
     if (!rows.length) {
       node?.remove();
@@ -83,14 +83,14 @@
       node.className = 'xb-past-pending-alert';
       if (anchor?.parentElement) anchor.parentElement.insertBefore(node, anchor);
     }
-    node.innerHTML = alertHtml(rows, compact);
+    node.innerHTML = alertHtml(rows);
   }
 
   function refresh() {
     ensureStyles();
     const rows = pastOpenRows();
-    ensureAlert('xbPastPendingClosingAlert', document.getElementById('closingBanner'), rows, false);
-    ensureAlert('xbPastPendingDashboardAlert', document.getElementById('dashboardStats'), rows, true);
+    ensureAlert('xbPastPendingClosingAlert', document.getElementById('closingBanner'), rows);
+    ensureAlert('xbPastPendingDashboardAlert', document.getElementById('dashboardStats'), rows);
     if (rows.length) {
       window.dispatchEvent(new CustomEvent('xb:past-pending-detected', {
         detail: { count: rows.length, dates: groupRows(rows).map(([date, items]) => ({ date, count: items.length })) }
@@ -103,12 +103,14 @@
   document.addEventListener('click', event => {
     const button = event.target.closest?.('[data-open-past-pending]');
     if (!button) return;
-    const date = document.getElementById('dateFilter');
-    const status = document.getElementById('statusFilter');
-    if (date) date.value = 'all';
-    if (status) status.value = '';
-    if (typeof go === 'function') go('deliveries');
-    if (typeof renderDeliveries === 'function') renderDeliveries();
+    const firstOpenDay = [...new Set(pastOpenRows().map(item => String(item?.businessDate || dayKey(item?.createdAt))))]
+      .sort()[0];
+    if (typeof go === 'function') go('closing');
+    const daySelect = document.getElementById('closingDaySelect');
+    if (firstOpenDay && daySelect && [...daySelect.options].some(option => option.value === firstOpenDay)) {
+      daySelect.value = firstOpenDay;
+      daySelect.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   });
 
   ['xb:cloud-ready', 'xb:cloud-pulled', 'xb:cloud-synced', 'xb:data-saved', 'xb:closing-continuity-recovered', 'xb:open-past-days-detected', 'xb:enhancements-ready'].forEach(name => {

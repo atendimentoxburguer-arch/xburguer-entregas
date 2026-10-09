@@ -1,5 +1,5 @@
 (() => {
-  const version = '20261009-open-day-v1';
+  const version = '20261009-open-day-sync-v2';
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.
