@@ -54,6 +54,9 @@ jobs:
       - name: Test local cache and quota recovery
         run: node --test tests/local-cache.test.cjs
 
+      - name: Test connection resilience and safe updates
+        run: node --test tests/resilience.test.cjs
+
   deploy:
     needs: validate
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')

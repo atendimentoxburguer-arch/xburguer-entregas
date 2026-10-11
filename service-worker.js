@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'xburguer-entregas-';
-const CACHE_NAME = `${CACHE_PREFIX}pwa-v47`;
+const CACHE_NAME = `${CACHE_PREFIX}pwa-v48`;
 
 const APP_SHELL = [
   './',
@@ -15,6 +15,8 @@ const APP_SHELL = [
   './ticket-average.css',
   './app.js',
   './local-cache.js',
+  './sync-protection.js',
+  './cloud-transport.js',
   './app-core.js',
   './core-safety.js',
   './supabase-config.js',

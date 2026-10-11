@@ -1,7 +1,7 @@
 (() => {
   if (window.__xbPwaInstalled) return;
   window.__xbPwaInstalled = true;
-  const APP_VERSION = '20261011-local-cache-v5';
+  const APP_VERSION = '20261011-sync-resilience-v6';
 
   let deferredPrompt = null;
   let installButton = null;

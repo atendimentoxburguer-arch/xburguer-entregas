@@ -29,6 +29,8 @@ async function harness(options = {}) {
     daily_closings: [], delivery_tombstones: []
   };
   const calls = [];
+  const listeners = new Map();
+  const intervals = [];
   if (options.remote) options.remote(remote);
   let hook = options.hook || (async () => undefined);
   class Query {
@@ -46,9 +48,10 @@ async function harness(options = {}) {
     then(resolve, reject) { return this.execute().then(resolve, reject); }
     async execute() {
       calls.push({ table: this.table, op: this.op, payload: clone(this.payload || null) });
-      const selected = clone((remote[this.table] || []).filter(row => this.filters.every(filter => filter(row))).slice(this.start, this.end + 1));
+      let selected = clone((remote[this.table] || []).filter(row => this.filters.every(filter => filter(row))).slice(this.start, this.end + 1));
       const override = await hook(this, selected);
       if (override) return override;
+      selected = clone((remote[this.table] || []).filter(row => this.filters.every(filter => filter(row))).slice(this.start, this.end + 1));
       if (this.op === 'upsert' || this.op === 'insert') {
         for (const row of Array.isArray(this.payload) ? this.payload : [this.payload]) {
           const key = this.table === 'daily_closings' ? 'date' : 'id';
@@ -72,6 +75,8 @@ async function harness(options = {}) {
     },
     async rpc(name, args) {
       calls.push({ rpc: name, args });
+      const override = await options.rpcHook?.(name, args);
+      if (override) return override;
       if (name === 'xb_delete_delivery') {
         remote.deliveries = remote.deliveries.filter(row => row.id !== args.p_id);
       }
@@ -86,7 +91,7 @@ async function harness(options = {}) {
   };
   const context = {
     console: { info() {}, warn() {}, error() {} }, Date, Intl, Promise, Math,
-    setTimeout() { return 1; }, clearTimeout() {}, setInterval() { return 1; },
+    setTimeout() { return 1; }, clearTimeout() {}, setInterval(fn, ms) { intervals.push({ fn, ms }); return 1; },
     requestAnimationFrame() {}, queueMicrotask() {}, navigator: { onLine: true },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => { options.storageWrite?.(key); storage.set(key, value); }, removeItem: key => storage.delete(key) },
     sessionStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
@@ -98,7 +103,7 @@ async function harness(options = {}) {
     dateKey: () => '2026-10-09',
     document: { hidden: false, getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; }, addEventListener() {},
       createElement() { return { appendChild() {}, addEventListener() {} }; }, head: { appendChild() {} } },
-    addEventListener() {},
+    addEventListener(name, fn) { listeners.set(name, fn); },
     dispatchEvent(event) { events.push(event); if (event.type === 'xb:cloud-ready') ready.resolve(); },
     CustomEvent: function (type, options) { this.type = type; this.detail = options?.detail; },
     XB_SUPABASE_CONFIG: { enabled: true, projectUrl: 'https://example.supabase.co', publishableKey: 'test', autoSync: true, realtime: false, autoMigrateLocalData: false },
@@ -110,8 +115,113 @@ async function harness(options = {}) {
   const load = name => vm.runInContext(fs.readFileSync(name, 'utf8'), context, { filename: name });
   load('database-cloud-v2.js');
   await ready.promise;
-  return { context, remote, calls, events, notifications, storage, load, hook: fn => { hook = fn; } };
+  return { context, remote, calls, events, notifications, storage, listeners, intervals, load, hook: fn => { hook = fn; } };
 }
+
+test('edição de dia aberto ultrapassada por outro notebook é preservada antes de aceitar o banco', async () => {
+  const h = await harness();
+  h.context.db.deliveries[1].orderValue = 70;
+  h.context.save();
+  h.remote.deliveries[1].order_value = 85;
+  h.remote.deliveries[1].updated_at = '2026-10-11T23:00:00Z';
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(await h.context.XBCloud.pullNow(), true);
+  const copy = h.context.XBCloud.recoveryData().entries.find(item => item.key === 'd2');
+  assert.equal(copy.local.orderValue, 70);
+  assert.equal(copy.remote.orderValue, 85);
+  assert.equal(h.context.db.deliveries.find(item => item.id === 'd2').orderValue, 85);
+  assert.equal(h.remote.deliveries[1].order_value, 85);
+});
+
+test('entrega excluída em outro aparelho não reaparece e sua edição local é preservada', async () => {
+  const h = await harness();
+  h.context.db.deliveries[1].orderValue = 78;
+  h.context.save();
+  h.remote.deliveries = h.remote.deliveries.filter(item => item.id !== 'd2');
+  h.remote.delivery_tombstones.push({ user_id: 'u1', delivery_id: 'd2' });
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(await h.context.XBCloud.pullNow(), true);
+  assert.equal(h.context.XBCloud.recoveryData().entries.find(item => item.key === 'd2').local.orderValue, 78);
+  assert(!h.remote.deliveries.some(item => item.id === 'd2'));
+  assert(!h.context.db.deliveries.some(item => item.id === 'd2'));
+});
+
+test('fila extensa usa lotes menores e mantém apenas lotes não confirmados após falha parcial', async () => {
+  const h = await harness();
+  for (let code = 100; code < 330; code++) h.context.db.deliveries.push(localDelivery(delivery(`d${code}`, '2026-10-11')));
+  h.context.save();
+  let count = 0;
+  h.hook(async query => {
+    if (query.op !== 'insert' || query.table !== 'deliveries') return;
+    assert(query.payload.length <= 100);
+    if (++count === 2) return { error: { message: 'Falha no segundo lote' } };
+  });
+  assert.equal(await h.context.XBCloud.syncNow(), false);
+  assert.equal(h.context.XBCloud.pendingChanges, 130);
+  assert.equal(h.remote.deliveries.filter(item => Number(item.code) >= 100).length, 100);
+  h.hook(async () => undefined);
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(h.remote.deliveries.filter(item => Number(item.code) >= 100).length, 230);
+  assert.equal(h.context.XBCloud.pendingChanges, 0);
+});
+
+test('exclusões confirmadas individualmente não são repetidas após falha na próxima', async () => {
+  let fail = true;
+  const h = await harness({ rpcHook: async (name, args) => name === 'xb_delete_delivery' && args.p_id === 'd2' && fail
+    ? { error: { message: 'Falha temporária na exclusão' } } : undefined });
+  h.context.db.deliveries = h.context.db.deliveries.filter(item => !['d1', 'd2'].includes(item.id));
+  h.context.save();
+  assert.equal(await h.context.XBCloud.syncNow(), false);
+  assert.equal(h.context.XBCloud.pendingChanges, 1);
+  fail = false;
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(h.calls.filter(call => call.rpc === 'xb_delete_delivery' && call.args.p_id === 'd1').length, 1);
+});
+
+test('fila vazia não mascara falha de leitura e verificação automática recupera o banco', async () => {
+  const h = await harness();
+  h.hook(async query => query.op === 'select' ? { error: { message: 'Banco temporariamente indisponível' } } : undefined);
+  assert.equal(await h.context.XBCloud.pullNow(), false);
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(h.context.XBCloud.state.connected, false);
+  assert.equal(h.context.XBCloud.state.lastError, 'Banco temporariamente indisponível');
+  h.hook(async () => undefined);
+  h.remote.deliveries[1].order_value = 96;
+  await h.intervals.find(item => item.ms === 120000).fn();
+  assert.equal(h.context.db.deliveries.find(item => item.id === 'd2').orderValue, 96);
+  assert.equal(h.context.XBCloud.state.connected, true);
+  assert.equal(h.context.XBCloud.state.lastError, '');
+});
+
+test('fechamento não chama o banco quando a gravação local não foi confirmada', async () => {
+  let fail = false;
+  const h = await harness({ cache: { flush: async () => { if (fail) throw new Error('Disco sem espaço'); } } });
+  h.load('closing-continuity.js');
+  fail = true;
+  await assert.rejects(h.context.XBClosingContinuity.finalizeDay('2026-10-04'), /Disco sem espaço/);
+  assert(!h.calls.some(call => call.rpc === 'xb_finalize_day_explicit'));
+});
+
+test('edição concorrente após a consulta impede UPDATE antigo e preserva os dois valores', async () => {
+  const h = await harness();
+  h.context.db.deliveries[1].orderValue = 72;
+  h.context.save();
+  let changed = false;
+  h.hook(async query => {
+    if (query.table === 'deliveries' && query.op === 'update' && !changed) {
+      changed = true;
+      h.remote.deliveries[1].order_value = 93;
+      h.remote.deliveries[1].updated_at = '2026-10-11T23:00:00Z';
+    }
+  });
+  assert.equal(await h.context.XBCloud.syncNow(), true);
+  assert.equal(h.remote.deliveries[1].order_value, 93);
+  const copy = h.context.XBCloud.recoveryData().entries.find(item => item.key === 'd2');
+  assert.equal(copy.local.orderValue, 72);
+  assert.equal(copy.remote.orderValue, 93);
+  assert.equal(await h.context.XBCloud.pullNow(), true);
+  assert.equal(h.context.db.deliveries.find(item => item.id === 'd2').orderValue, 93);
+});
 
 test('sincronização manual aguarda o envio em andamento e esvazia novas revisões', async () => {
   const h = await harness();
@@ -124,7 +234,7 @@ test('sincronização manual aguarda o envio em andamento e esvazia novas revis�
   const release = deferred();
   let blocked = false;
   h.hook(async query => {
-    if (query.op === 'upsert' && query.table === 'deliveries' && !blocked) {
+    if (query.op === 'update' && query.table === 'deliveries' && !blocked) {
       blocked = true;
       entered.resolve();
       await release.promise;
@@ -180,18 +290,18 @@ test('edições, inclusões e exclusões feitas durante um pull permanecem na te
 
 test('uma entrega idêntica ao banco não é regravada em um dia fechado', async () => {
   const h = await harness();
-  h.hook(async query => query.op === 'upsert' && query.table === 'deliveries'
+  h.hook(async query => query.op !== 'select' && query.table === 'deliveries'
     ? { data: null, error: { message: 'O dia 2026-10-04 já foi finalizado' } } : undefined);
   h.context.db.deliveries[0].updatedAt = '2026-10-09T16:00:00Z';
   h.context.save();
   assert.strictEqual(await h.context.XBCloud.syncNow(), true);
   assert.strictEqual(h.context.XBCloud.pendingChanges, 0);
-  assert(!h.calls.some(call => call.table === 'deliveries' && call.op === 'upsert'));
+  assert(!h.calls.some(call => call.table === 'deliveries' && call.op !== 'select'));
 });
 
 test('falha no banco preserva alterações pendentes e o motivo do erro', async () => {
   const h = await harness();
-  h.hook(async query => query.op === 'upsert' ? { data: null, error: { message: 'Falha de teste no banco' } } : undefined);
+  h.hook(async query => query.op !== 'select' ? { data: null, error: { message: 'Falha de teste no banco' } } : undefined);
   h.context.db.deliveries[0].orderValue = 55;
   h.context.save();
   assert.strictEqual(await h.context.XBCloud.syncNow(), false);
@@ -348,7 +458,7 @@ test('envio rejeitado em dia aberto não bloqueia a leitura dos fechamentos nem 
   const local = { settings: { storeName: 'Loja', defaultFee: 6 }, couriers: [],
     deliveries: [{ ...localDelivery(delivery('d2', '2026-10-05')), orderValue: 99 }], closings: [] };
   const h = await harness({ local, remote: closedDays, storage: { xb_cloud_queue_v2_u1: JSON.stringify({ upserts: { deliveries: { d2: 'r1' } } }) },
-    hook: async query => query.op === 'upsert' ? { error: { message: 'Falha de escrita no banco' } } : undefined });
+    hook: async query => query.op !== 'select' ? { error: { message: 'Falha de escrita no banco' } } : undefined });
   assert.strictEqual(h.context.db.closings.length, 2);
   assert.strictEqual(h.context.db.deliveries.find(item => item.id === 'd2').orderValue, 99);
   assert.strictEqual(h.context.XBCloud.pendingChanges, 1);

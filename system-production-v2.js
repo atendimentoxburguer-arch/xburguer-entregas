@@ -221,6 +221,9 @@
     const cloud = window.XBCloud;
     const state = cloud?.state || {};
     const pending = Number(cloud?.pendingChanges ?? state.pending ?? 0);
+    const cache = window.XBLocalCache?.state;
+    if (cache?.error) return { klass: 'error', text: 'Falha na gravação local' };
+    if (cache?.pending) return { klass: 'syncing', text: 'Guardando no aparelho...' };
 
     if (!navigator.onLine) {
       return {
@@ -449,7 +452,7 @@
   installSyncButton();
   updateSyncUi();
 
-  ['online', 'offline', 'xb:cloud-ready', 'xb:cloud-synced', 'xb:cloud-pulled'].forEach(name => {
+  ['online', 'offline', 'xb:cloud-ready', 'xb:cloud-synced', 'xb:cloud-pulled', 'xb:local-cache-state'].forEach(name => {
     window.addEventListener(name, updateSyncUi);
   });
 
