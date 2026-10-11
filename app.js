@@ -1,5 +1,6 @@
 (() => {
-  const version = '20261009-sync-recovery-v4';
+  const version = '20261011-local-cache-v5';
+  window.XB_APP_VERSION = version;
 
   // O HTML pode permanecer aberto por dias em outro computador. Atualizamos
   // a folha principal pelo carregador para forçar a mesma versão visual em todos.
@@ -70,6 +71,8 @@
 
   async function startSystem() {
     try {
+      await loadVersionedFile('local-cache.js', 'armazenamento local');
+      await window.XBLocalCache.ready;
       await loadOrderedGroup([
         'supabase-config.js',
         'app-core.js',

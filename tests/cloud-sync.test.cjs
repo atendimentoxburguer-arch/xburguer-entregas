@@ -105,6 +105,7 @@ async function harness(options = {}) {
     supabase: { createClient: () => client }
   };
   context.window = context;
+  if (options.cache) context.XBLocalCache = { ...context.localStorage, flush: options.cache.flush };
   vm.createContext(context);
   const load = name => vm.runInContext(fs.readFileSync(name, 'utf8'), context, { filename: name });
   load('database-cloud-v2.js');
@@ -370,4 +371,65 @@ test('novo pedido vinculado a dia fechado é preservado integralmente para confe
   assert.strictEqual(saved.local.client, 'Novo cliente');
   assert.strictEqual(saved.remote, null);
   assert(h.notifications.some(item => /preservadas/.test(item.message)));
+});
+
+test('envio aguarda a confirmação do cache local antes de escrever no banco', async () => {
+  const entered = deferred();
+  const release = deferred();
+  let wait = false;
+  const h = await harness({ cache: { async flush() { if (wait) { entered.resolve(); await release.promise; } } } });
+  h.context.db.deliveries[0].orderValue = 88;
+  h.context.save();
+  wait = true;
+  const sending = h.context.XBCloud.syncNow();
+  await entered.promise;
+  assert.strictEqual(h.remote.deliveries[0].order_value, 30);
+  assert.strictEqual(h.context.XBCloud.pendingChanges, 1);
+  wait = false;
+  release.resolve();
+  assert.strictEqual(await sending, true);
+  assert.strictEqual(h.remote.deliveries[0].order_value, 88);
+});
+
+test('cópia de conflito sem confirmação de gravação não sai da fila, inclusive durante pull', async () => {
+  let h;
+  let fail = true;
+  h = await harness({ cache: { async flush() {
+    if (fail && h?.storage.has('xb_cloud_recovery_v1_u1')) throw new Error('Cache não gravado');
+  } } });
+  closedDays(h.remote);
+  h.context.db.deliveries[0].orderValue = 99;
+  h.context.save();
+  assert.strictEqual(await h.context.XBCloud.syncNow(), false);
+  assert.strictEqual(await h.context.XBCloud.pullNow(), false);
+  assert.strictEqual(h.context.XBCloud.pendingChanges, 1);
+  assert.strictEqual(h.context.db.deliveries[0].orderValue, 99);
+  assert.strictEqual(h.remote.deliveries[0].order_value, 30);
+  fail = false;
+  assert.strictEqual(await h.context.XBCloud.syncNow(), true);
+  assert.strictEqual(await h.context.XBCloud.pullNow(), true);
+  assert.strictEqual(h.context.XBCloud.recoveryData().entries[0].local.orderValue, 99);
+});
+
+test('edição durante gravação da cópia de conflito também é preservada', async () => {
+  let h;
+  let waiting = true;
+  const entered = deferred();
+  const release = deferred();
+  h = await harness({ cache: { async flush() {
+    if (waiting && h?.storage.has('xb_cloud_recovery_v1_u1')) { waiting = false; entered.resolve(); await release.promise; }
+  } } });
+  closedDays(h.remote);
+  h.context.db.deliveries[0].orderValue = 99;
+  h.context.save();
+  const sending = h.context.XBCloud.syncNow();
+  await entered.promise;
+  h.context.db.deliveries[0].orderValue = 100;
+  h.context.save();
+  release.resolve();
+  assert.strictEqual(await sending, true);
+  const entries = h.context.XBCloud.recoveryData().entries.filter(item => item.key === 'd1');
+  assert.deepStrictEqual(Array.from(entries, item => item.local.orderValue), [99, 100]);
+  assert.strictEqual(h.context.XBCloud.pendingChanges, 0);
+  assert.strictEqual(h.remote.deliveries[0].order_value, 30);
 });

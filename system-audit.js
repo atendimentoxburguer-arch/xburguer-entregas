@@ -8,10 +8,10 @@
   const DELIVERY_STATUSES = ['Aguardando', 'Em rota', 'Entregue', 'Cancelada'];
 
   const safeGet = key => {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try { return (window.XBLocalCache || localStorage).getItem(key); } catch { return null; }
   };
   const safeSet = (key, value) => {
-    try { localStorage.setItem(key, value); return true; } catch { return false; }
+    try { (window.XBLocalCache || localStorage).setItem(key, value); return true; } catch { return false; }
   };
   const finiteNumber = (value, fallback = 0) => {
     const number = Number(value);

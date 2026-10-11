@@ -22,10 +22,10 @@
     ];
 
     try {
-      for (let index = 0; index < localStorage.length; index += 1) {
-        const key = localStorage.key(index);
+      for (let index = 0; index < (window.XBLocalCache || localStorage).length; index += 1) {
+        const key = (window.XBLocalCache || localStorage).key(index);
         if (!key || !prefixes.some(prefix => key === prefix || key.startsWith(prefix))) continue;
-        const raw = localStorage.getItem(key);
+        const raw = (window.XBLocalCache || localStorage).getItem(key);
         if (!raw) continue;
         try {
           const payload = JSON.parse(raw);
@@ -40,7 +40,7 @@
             target.settings.email = '';
             changed = true;
           }
-          if (changed) localStorage.setItem(key, JSON.stringify(payload));
+          if (changed) (window.XBLocalCache || localStorage).setItem(key, JSON.stringify(payload));
         } catch {}
       }
     } catch {}

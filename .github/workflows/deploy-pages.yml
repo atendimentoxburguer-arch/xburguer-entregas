@@ -51,6 +51,9 @@ jobs:
       - name: Test cloud synchronization and closing
         run: node --test tests/cloud-sync.test.cjs
 
+      - name: Test local cache and quota recovery
+        run: node --test tests/local-cache.test.cjs
+
   deploy:
     needs: validate
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
