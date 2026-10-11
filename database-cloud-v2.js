@@ -48,15 +48,15 @@
   );
 
   function safeGet(key) {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try { return (window.XBLocalCache || localStorage).getItem(key); } catch { return null; }
   }
 
   function safeSet(key, value) {
-    try { localStorage.setItem(key, value); return true; } catch { return false; }
+    try { (window.XBLocalCache || localStorage).setItem(key, value); return true; } catch { return false; }
   }
 
   function safeRemove(key) {
-    try { localStorage.removeItem(key); } catch {}
+    try { (window.XBLocalCache || localStorage).removeItem(key); } catch {}
   }
 
   function formatDateTime(value) {
@@ -146,6 +146,7 @@
       <div class="db-status-row"><span>Conexão em nuvem</span><strong id="cloudConnectionStatus">Conectando...</strong></div>
       <div class="db-status-row"><span>Sincronização</span><strong id="cloudSyncMode">Automática</strong></div>
       <div class="db-status-row"><span>Última sincronização</span><strong id="cloudLastSync">Ainda não sincronizado</strong></div>
+      <div class="db-status-row"><span>Versão do aplicativo</span><strong id="cloudAppVersion"></strong></div>
       <div class="db-status-row" id="cloudErrorRow" hidden><span>Erro no envio</span><strong id="cloudLastError"></strong></div>`;
     [...rows.children].forEach(row => grid.appendChild(row));
   }
@@ -160,15 +161,19 @@
     return data;
   }
 
-  function preserveConflict(type, mode, key, revision, local, remote, reason) {
+  async function preserveConflict(type, mode, key, revision, local, remote, reason) {
     const data = recoveryData();
-    if (data.entries.some(item => item.type === type && item.mode === mode && item.key === key && item.revision === revision)) return false;
+    if (data.entries.some(item => item.type === type && item.mode === mode && item.key === key && item.revision === revision)) {
+      await window.XBLocalCache?.flush();
+      return false;
+    }
     data.entries.push({ savedAt: nowIso(), type, mode, key, revision, reason, local: local ? clone(local) : null, remote: remote ? clone(remote) : null });
     const serialized = JSON.stringify(data);
     const storageKey = `${RECOVERY_PREFIX}${currentUser.id}`;
     if (!safeSet(storageKey, serialized) || safeGet(storageKey) !== serialized) {
       throw new Error('Sem espaço para preservar uma alteração antiga. Exporte um backup antes de tentar novamente.');
     }
+    await window.XBLocalCache?.flush();
     return true;
   }
 
@@ -212,6 +217,9 @@
     const mode = document.getElementById('cloudSyncMode');
     const errorRow = document.getElementById('cloudErrorRow');
     const errorText = document.getElementById('cloudLastError');
+    const versionText = document.getElementById('cloudAppVersion');
+    const version = String(window.XB_APP_VERSION || '').match(/^(\d{4})(\d{2})(\d{2}).*-v(\d+)$/);
+    if (versionText && version) versionText.textContent = `${version[3]}/${version[2]}/${version[1]} · v${version[4]}`;
     if (errorRow) errorRow.hidden = !state.lastError;
     if (errorText) errorText.textContent = state.lastError;
 
@@ -478,9 +486,10 @@
           // Uma edição em dia já fechado fica preservada antes de aceitar o banco.
           const identical = mode === 'upserts' && remote && recordSignature(type, local) === recordSignature(type, remote);
           if (!identical && (mode === 'upserts' ? local : remote)) {
-            if (preserveConflict(type, mode, key, batch[mode][type][key], local, remote,
+            if (await preserveConflict(type, mode, key, batch[mode][type][key], local, remote,
               type === 'closings' ? 'Fechamento deve ser confirmado ou reaberto pelo banco.' : 'Entrega pertence a um dia já fechado no banco.')) preserved += 1;
           }
+          if (queue[mode][type][key] !== batch[mode][type][key]) continue;
           replacements.push({ type, key, remote });
           clearBatchEntries(batch, mode, type, [key]);
         }
@@ -491,6 +500,7 @@
     window.__xbApplyingRemoteSnapshot = true;
     try {
       for (const { type, key, remote } of replacements) {
+        if (queue.upserts[type][key] || queue.deletes[type][key]) continue;
         const field = type === 'closings' ? 'date' : 'id';
         db[type] = (db[type] || []).filter(item => String(item[field]) !== key);
         if (remote) db[type].push(clone(remote));
@@ -646,6 +656,11 @@
     clearTimeout(syncTimer);
     syncTimer = null;
     if (!hasPending(queue)) {
+      try { await window.XBLocalCache?.flush(); } catch (error) {
+        state.lastError = String(error?.message || error);
+        updateCloudStatus('Falha ao guardar cache local');
+        return false;
+      }
       state.connected = true;
       state.lastError = '';
       syncRetryDelay = 5000;
@@ -661,6 +676,7 @@
     let succeeded = false;
 
     try {
+      await window.XBLocalCache?.flush();
       await reconcileClosedDayQueue(batch);
       await syncSettings(batch.settingsRev);
       await syncUpserts(batch, 'couriers');
@@ -669,6 +685,7 @@
       await syncDeletes(batch, 'deliveries');
       await syncDeletes(batch, 'closings');
       await syncDeletes(batch, 'couriers');
+      await window.XBLocalCache?.flush();
 
       const syncedAt = nowIso();
       localChangeVersion += 1;
@@ -886,6 +903,7 @@
       suppressCloudPush = false;
       window.__xbApplyingRemoteSnapshot = false;
     }
+    await window.XBLocalCache?.flush();
     if (!hasPending(queue)) state.lastError = '';
   }
 

@@ -7,13 +7,13 @@
   const LAST_BACKUP_KEY = 'xb_entregas_last_backup_v1';
 
   const safeStorageSet = (key, value) => {
-    try { localStorage.setItem(key, value); return true; } catch { return false; }
+    try { (window.XBLocalCache || localStorage).setItem(key, value); return true; } catch { return false; }
   };
   const safeStorageGet = key => {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try { return (window.XBLocalCache || localStorage).getItem(key); } catch { return null; }
   };
   const safeStorageRemove = key => {
-    try { localStorage.removeItem(key); } catch {}
+    try { (window.XBLocalCache || localStorage).removeItem(key); } catch {}
   };
 
   function formatDateTimeFull(value) {
@@ -80,9 +80,12 @@
     if (dangerCard) target.insertBefore(card, dangerCard);
     else target.appendChild(card);
 
-    document.getElementById('createRecoveryBtn')?.addEventListener('click', () => {
-      if (writeRecoverySnapshot('manual')) toast('Ponto de recuperação criado.');
-      else toast('Não foi possível criar o ponto de recuperação.', 'error');
+    document.getElementById('createRecoveryBtn')?.addEventListener('click', async () => {
+      try {
+        if (!writeRecoverySnapshot('manual')) throw new Error('Falha ao gravar ponto de recuperação.');
+        await window.XBLocalCache?.flush();
+        toast('Ponto de recuperação criado.');
+      } catch { toast('Não foi possível criar o ponto de recuperação.', 'error'); }
     });
 
     document.getElementById('restoreRecoveryBtn')?.addEventListener('click', async () => {

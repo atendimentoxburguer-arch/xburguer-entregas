@@ -65,7 +65,7 @@ function initialDB() {
 
 function loadDB() {
   try {
-    const raw = localStorage.getItem(DB_KEY);
+    const raw = (window.XBLocalCache || localStorage).getItem(DB_KEY);
     if (!raw) return initialDB();
     const data = JSON.parse(raw);
     const base = initialDB();
@@ -81,7 +81,7 @@ function loadDB() {
 }
 
 let db = loadDB();
-function save() { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function save() { (window.XBLocalCache || localStorage).setItem(DB_KEY, JSON.stringify(db)); }
 save();
 
 function parseLegacyChange(notes) {
@@ -149,7 +149,7 @@ document.addEventListener('keydown', event => {
 });
 
 // LOGIN
-const rememberedEmail = localStorage.getItem(LOGIN_EMAIL_KEY);
+const rememberedEmail = (window.XBLocalCache || localStorage).getItem(LOGIN_EMAIL_KEY);
 if (rememberedEmail) {
   $('loginEmail').value = rememberedEmail;
   $('rememberLogin').checked = true;
@@ -170,8 +170,8 @@ $('loginForm').addEventListener('submit', event => {
   const password = $('loginPassword').value;
   if (email === db.settings.email && password === db.settings.password) {
     sessionStorage.setItem(SESSION_KEY, '1');
-    if ($('rememberLogin').checked) localStorage.setItem(LOGIN_EMAIL_KEY, email);
-    else localStorage.removeItem(LOGIN_EMAIL_KEY);
+    if ($('rememberLogin').checked) (window.XBLocalCache || localStorage).setItem(LOGIN_EMAIL_KEY, email);
+    else (window.XBLocalCache || localStorage).removeItem(LOGIN_EMAIL_KEY);
     showApp();
   } else {
     toast('E-mail ou senha incorretos.', 'error');

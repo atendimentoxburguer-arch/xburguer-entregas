@@ -16,11 +16,11 @@
   }
 
   function safeGet(key) {
-    try { return localStorage.getItem(key); } catch { return null; }
+    try { return (window.XBLocalCache || localStorage).getItem(key); } catch { return null; }
   }
 
   function safeSet(key, value) {
-    try { localStorage.setItem(key, value); return true; } catch { return false; }
+    try { (window.XBLocalCache || localStorage).setItem(key, value); return true; } catch { return false; }
   }
 
   function scrubSecrets(target) {

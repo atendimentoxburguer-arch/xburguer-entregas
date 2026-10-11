@@ -64,6 +64,6 @@
   document.getElementById('loginView')?.classList.remove('hidden');
 
   if (changed) {
-    try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch {}
+    try { (window.XBLocalCache || localStorage).setItem(DB_KEY, JSON.stringify(db)); } catch {}
   }
 })();
