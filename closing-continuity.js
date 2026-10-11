@@ -141,6 +141,7 @@
 
   async function flushBeforeClosing() {
     if (!cloudAvailable()) throw new Error('É necessária conexão com a internet para finalizar o dia com segurança.');
+    await window.XBLocalCache?.flush();
     if (window.XBCloud?.syncNow) {
       const synced = await window.XBCloud.syncNow();
       if (synced === false) {

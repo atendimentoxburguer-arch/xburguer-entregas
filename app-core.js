@@ -68,6 +68,9 @@ function loadDB() {
     const raw = (window.XBLocalCache || localStorage).getItem(DB_KEY);
     if (!raw) return initialDB();
     const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object' || !Array.isArray(data.deliveries) || !Array.isArray(data.couriers) || !Array.isArray(data.closings)) {
+      throw new Error('A estrutura da cópia local está incompleta.');
+    }
     const base = initialDB();
     return {
       settings: { ...base.settings, ...(data.settings || {}) },
@@ -75,8 +78,9 @@ function loadDB() {
       deliveries: Array.isArray(data.deliveries) ? data.deliveries : [],
       closings: Array.isArray(data.closings) ? data.closings : []
     };
-  } catch {
-    return initialDB();
+  } catch (error) {
+    window.__xbCoreLoadFailure = 'Não foi possível ler a cópia local. As cópias existentes foram mantidas. Tente novamente ou recupere um backup.';
+    throw new Error(window.__xbCoreLoadFailure, { cause: error });
   }
 }
 

@@ -52,8 +52,15 @@ async function harness(options = {}) {
   const storage = options.storage || new Map();
   const backend = options.backend || engine();
   const errors = [];
+  const timers = new Map();
+  const listeners = new Map();
+  let sequence = 0;
   const context = {
     indexedDB: options.unavailable ? undefined : backend.indexedDB,
+    navigator: options.navigator || {},
+    setTimeout(fn, ms) { const id = ++sequence; timers.set(id, { fn, ms }); return id; },
+    clearTimeout(id) { timers.delete(id); },
+    addEventListener(name, fn) { listeners.set(name, fn); },
     console: { warn() {}, error() {} }, queueMicrotask, Map, Set, Promise, Array, String,
     CustomEvent: function (type, options) { this.type = type; this.detail = options.detail; },
     dispatchEvent(event) { errors.push(event); },
@@ -72,7 +79,7 @@ async function harness(options = {}) {
   vm.createContext(context);
   vm.runInContext(fs.readFileSync('local-cache.js', 'utf8'), context);
   await context.XBLocalCache.ready;
-  return { cache: context.XBLocalCache, context, storage, backend, errors };
+  return { cache: context.XBLocalCache, context, storage, backend, errors, timers, listeners };
 }
 
 test('migração preserva dados, cópias e fila antes de liberar o localStorage cheio', async () => {
@@ -157,4 +164,128 @@ test('sem IndexedDB o armazenamento legado continua funcionando e informa quota 
   assert.equal(h.cache.getItem('xb_entregas_v3'), 'antigo');
   assert.throws(() => h.cache.setItem('xb_entregas_v3', 'x'.repeat(200)), /QuotaExceededError/);
   assert.equal(h.cache.getItem('xb_entregas_v3'), 'antigo');
+});
+
+test('cache informa gravações em trânsito e só confirma depois do commit', async () => {
+  const h = await harness();
+  const entered = deferred();
+  const release = deferred();
+  h.backend.hook(async mode => { if (mode === 'readwrite') { entered.resolve(); await release.promise; } });
+  h.cache.setItem('xb_entregas_v3', 'nova-versão');
+  assert.equal(h.cache.state.pending, 1);
+  const flush = h.cache.flush();
+  await entered.promise;
+  assert.equal(h.cache.state.pending, 1);
+  assert.equal(h.cache.state.lastSavedAt, '');
+  release.resolve();
+  await flush;
+  assert.equal(h.cache.state.pending, 0);
+  assert(h.cache.state.lastSavedAt);
+});
+
+test('repetir um snapshot confirmado não regrava o histórico', async () => {
+  const h = await harness();
+  let writes = 0;
+  h.backend.hook(async mode => { if (mode === 'readwrite') writes += 1; });
+  h.cache.setItem('xb_entregas_v3', 'idêntico');
+  await h.cache.flush();
+  for (let i = 0; i < 5; i++) h.cache.setItem('xb_entregas_v3', 'idêntico');
+  await h.cache.flush();
+  assert.equal(writes, 1);
+  assert.equal(h.cache.state.pending, 0);
+});
+
+test('gravação abortada é retomada automaticamente mantendo a alteração', async () => {
+  const h = await harness();
+  let fail = true;
+  h.backend.hook(async mode => { if (mode === 'readwrite' && fail) throw new Error('Falha temporária'); });
+  h.cache.setItem('xb_entregas_v3', 'preservado');
+  await assert.rejects(h.cache.flush(), /temporária/);
+  assert.equal(h.cache.state.pending, 1);
+  const retry = [...h.timers.values()].find(timer => timer.ms === 5000);
+  assert(retry, 'Deve programar uma retomada sem recarregar a página');
+  fail = false;
+  retry.fn();
+  await h.cache.flush();
+  assert.equal(h.backend.records.get('xb_entregas_v3'), 'preservado');
+  assert.equal(h.cache.state.pending, 0);
+  assert.equal(h.cache.state.error, '');
+});
+
+test('aba concorrente não lê nem sobrescreve o cache da aba ativa', async () => {
+  let held = false;
+  const locks = { request(name, options, callback) {
+    assert.equal(options.ifAvailable, true);
+    if (held) return Promise.resolve(callback(null));
+    held = true;
+    return Promise.resolve(callback({ name }));
+  } };
+  const backend = engine();
+  const first = await harness({ backend, navigator: { locks } });
+  first.cache.setItem('xb_entregas_v3', 'aba-ativa');
+  await first.cache.flush();
+  const second = await harness({ backend, navigator: { locks } });
+  assert.equal(second.cache.state.blocked, true);
+  assert.match(second.cache.state.error, /outra aba/);
+  assert.throws(() => second.cache.setItem('xb_entregas_v3', 'aba-antiga'), /outra aba/);
+  assert.equal(backend.records.get('xb_entregas_v3'), 'aba-ativa');
+});
+
+test('cópia antiga deixada no localStorage não substitui IndexedDB mais recente', async () => {
+  const backend = engine();
+  backend.records.set('xb_entregas_v3', 'histórico-confirmado');
+  const storage = new Map([['xb_entregas_v3', 'histórico-antigo'], ['xb_cloud_queue_v2_u1', 'fila-antiga']]);
+  const h = await harness({ backend, storage });
+  assert.equal(h.cache.getItem('xb_entregas_v3'), 'histórico-confirmado');
+  assert.equal(h.cache.getItem('xb_cloud_queue_v2_u1'), null);
+  const preserved = JSON.parse(h.cache.getItem('xb_cache_legacy_conflicts_v1'));
+  assert.equal(preserved.entries.find(item => item.key === 'xb_entregas_v3').value, 'histórico-antigo');
+  assert.equal(preserved.entries.find(item => item.key === 'xb_cloud_queue_v2_u1').value, 'fila-antiga');
+  assert.equal(storage.size, 0);
+});
+
+test('falha ao ler IndexedDB bloqueia a inicialização sem criar base vazia', async () => {
+  const backend = engine();
+  backend.records.set('xb_entregas_v3', 'dados-confirmados');
+  backend.hook(async mode => { if (mode === 'readonly') throw new Error('Leitura interrompida'); });
+  const h = await harness({ backend });
+  assert.equal(h.cache.state.blocked, true);
+  assert.throws(() => h.cache.setItem('xb_entregas_v3', 'vazio'), /Leitura interrompida/);
+  assert.equal(backend.records.get('xb_entregas_v3'), 'dados-confirmados');
+});
+
+test('estimativa de espaço e proteção permanente refletem a resposta do navegador', async () => {
+  let persistent = false;
+  const h = await harness({ navigator: { storage: {
+    estimate: async () => ({ usage: 95, quota: 100 }), persisted: async () => persistent,
+    persist: async () => { persistent = true; return true; }
+  } } });
+  await h.cache.measure();
+  assert.equal(h.cache.state.usage, 95);
+  assert.equal(h.cache.state.quota, 100);
+  assert.equal(h.cache.state.persistent, false);
+  assert.equal(await h.cache.protect(), true);
+  assert.equal(h.cache.state.persistent, true);
+});
+
+test('proteção ao fechar a aba vigora apenas enquanto há gravação sem confirmação', async () => {
+  const h = await harness();
+  let prevented = 0;
+  const event = { preventDefault() { prevented += 1; } };
+  h.listeners.get('beforeunload')(event);
+  assert.equal(prevented, 0);
+  h.cache.setItem('xb_entregas_v3', 'alteração');
+  h.listeners.get('beforeunload')(event);
+  assert.equal(prevented, 1);
+  await h.cache.flush();
+  h.listeners.get('beforeunload')(event);
+  assert.equal(prevented, 1);
+});
+
+test('cópia de recuperação contém a fila, mas exclui autenticação e outros aplicativos', async () => {
+  const h = await harness({ storage: new Map([['xb_supabase_auth_v1', 'segredo'], ['outro_app', 'externo']]) });
+  h.cache.setItem('xb_entregas_v3', 'histórico');
+  h.cache.setItem('xb_cloud_queue_v2_u1', 'fila-pendente');
+  assert.deepEqual(JSON.parse(JSON.stringify(h.cache.snapshot())), { xb_entregas_v3: 'histórico', xb_cloud_queue_v2_u1: 'fila-pendente' });
+  await h.cache.flush();
 });

@@ -30,6 +30,7 @@ node tests/metrics-consistency.test.cjs
 node tests/app-shell.test.cjs
 node --test tests/cloud-sync.test.cjs
 node --test tests/local-cache.test.cjs
+node --test tests/resilience.test.cjs
 ```
 
 ## Banco de dados
@@ -43,6 +44,12 @@ A sincronização manual aguarda os envios em andamento e informa sucesso soment
 Uma alteração local rejeitada não impede receber os dados do banco. Filas antigas de fechamento ou de entregas em dias já fechados são conciliadas com os registros confirmados: qualquer conflito é gravado e conferido no armazenamento deste aparelho antes de sair da fila. Em **Configurações > Banco de dados**, o botão **Baixar alterações preservadas** exporta essas cópias em JSON para conferência. Elas não reabrem dias nem alteram pagamentos automaticamente. Se a cópia não puder ser gravada, a alteração permanece na fila; erros de outros envios continuam visíveis nesse painel.
 
 O histórico, os pontos de recuperação e a fila de sincronização usam IndexedDB para não depender do limite pequeno do localStorage. Na atualização, as cópias antigas são migradas e conferidas antes de liberar esse espaço; a autenticação e dados de outros aplicativos permanecem no armazenamento original. O envio e a confirmação da leitura do banco aguardam a gravação local. Se essa gravação falhar, o erro é informado e as alterações não são descartadas.
+
+O aplicativo acompanha a gravação local e a estimativa de espaço do navegador. Em caso de falha, mantém as alterações em memória, tenta gravá-las novamente com intervalo crescente e oferece uma cópia completa para download, incluindo a fila pendente. A saída da página é sinalizada enquanto há gravação sem confirmação; o usuário deve manter o sistema aberto ou baixar a cópia até a recuperação. A proteção permanente pode ser solicitada ao navegador em **Proteger cópia local**; a concessão depende do navegador e não substitui backups fora do aparelho.
+
+Em navegadores com Web Locks, apenas uma aba do sistema utiliza o cache por vez. Uma aba concorrente informa onde continuar sem abrir uma cópia desatualizada. Falhas de leitura e JSON inválido interrompem a inicialização sem sobrescrever os registros. Cópias legadas divergentes ficam preservadas para conferência em vez de substituir o IndexedDB já confirmado.
+
+O envio limita lotes a 100 registros e confirma exclusões individualmente. Edições de entregas usam a versão consultada na condição do UPDATE; se outro aparelho modificar a linha durante o envio, os valores locais são preservados e a versão confirmada do banco é recebida. Requisições ao Supabase têm limite de 30 segundos, incluindo a leitura da resposta. A verificação automática ocorre a cada dois minutos com a janela visível e ao retornar ao aplicativo. Atualizações do PWA aguardam a gravação e não recarregam uma sessão de trabalho aberta.
 
 A criação de uma nova entrega reserva primeiro o número do pedido no banco por meio da função `xb_next_delivery_code()`. Isso evita que dois aparelhos recebam o mesmo número ao cadastrar pedidos ao mesmo tempo. Para manter essa garantia, novos pedidos precisam de conexão com a internet no momento do cadastro.
 

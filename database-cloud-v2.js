@@ -131,8 +131,11 @@
     if (!key) return;
     queue.updatedAt = nowIso();
     state.pending = pendingCount(queue);
-    if (state.pending) safeSet(key, JSON.stringify(queue));
-    else safeRemove(key);
+    if (state.pending && !safeSet(key, JSON.stringify(queue))) {
+      state.lastError = 'Não foi possível guardar a fila local. Mantenha o sistema aberto e baixe uma cópia de segurança.';
+      state.connected = false;
+    }
+    else if (!state.pending) safeRemove(key);
     updateCloudStatus();
   }
 
@@ -204,7 +207,7 @@
     }
     if (row) {
       row.hidden = !entries.length;
-      row.querySelector('span').textContent = `${entries.length} ${entries.length === 1 ? 'alteração antiga preservada' : 'alterações antigas preservadas'} para conferência. Os dias fechados usam os dados do banco.`;
+      row.querySelector('span').textContent = `${entries.length} ${entries.length === 1 ? 'alteração local preservada' : 'alterações locais preservadas'} para conferência. A sincronização usa os registros confirmados no banco.`;
     }
   }
 
@@ -518,6 +521,16 @@
   async function syncUpserts(batch, type) {
     const keys = activeBatchKeys(batch, 'upserts', type);
     if (!keys.length) return;
+    // Consultas com milhares de IDs ultrapassam o limite da URL e do envio.
+    if (keys.length > 100) {
+      for (let start = 0; start < keys.length; start += 100) {
+        const part = clone(batch);
+        part.upserts[type] = Object.fromEntries(keys.slice(start, start + 100).map(key => [key, batch.upserts[type][key]]));
+        await syncUpserts(part, type);
+        await window.XBLocalCache?.flush();
+      }
+      return;
+    }
 
     const tombstoned = new Set();
     const remoteUpdatedAt = new Map();
@@ -549,12 +562,14 @@
 
     const rows = [];
     const actualKeys = [];
-    keys.forEach(key => {
+    for (const key of keys) {
       if (tombstoned.has(String(key))) {
+        const local = currentRecord(type, key);
+        if (local) await preserveConflict(type, 'upserts', key, batch.upserts[type][key], local, null, 'Entrega excluída em outro aparelho.');
         if (queue.upserts[type][key] === batch.upserts[type][key]) {
           delete queue.upserts[type][key];
         }
-        return;
+        continue;
       }
 
       const item = currentRecord(type, key);
@@ -563,7 +578,7 @@
           delete queue.upserts[type][key];
           markQueue(type, key, 'deletes');
         }
-        return;
+        continue;
       }
 
       if (type === 'deliveries') {
@@ -572,7 +587,7 @@
         const remoteItem = remoteDeliveries.get(String(key));
         if (remoteItem && recordSignature(type, remoteItem) === recordSignature(type, item)) {
           clearBatchEntries(batch, 'upserts', type, [key]);
-          return;
+          continue;
         }
         const remoteTimestamp = remoteUpdatedAt.get(String(key));
         const localTimestamp = item.updatedAt || item.createdAt;
@@ -580,19 +595,56 @@
           const remoteMs = Date.parse(remoteTimestamp);
           const localMs = Date.parse(localTimestamp);
           if (Number.isFinite(remoteMs) && Number.isFinite(localMs) && remoteMs > localMs) {
+            await preserveConflict(type, 'upserts', key, batch.upserts[type][key], item, remoteItem, 'O banco possui uma alteração mais recente de outro aparelho.');
             if (queue.upserts[type][key] === batch.upserts[type][key]) {
               delete queue.upserts[type][key];
             }
-            return;
+            continue;
           }
         }
       }
 
       rows.push(toRemote(type, item));
       actualKeys.push(key);
-    });
+    }
     persistQueue();
     if (!rows.length) return;
+
+    if (type === 'deliveries') {
+      const inserts = [];
+      const insertKeys = [];
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const key = actualKeys[index];
+        const expected = remoteUpdatedAt.get(String(key));
+        if (!remoteDeliveries.has(String(key))) {
+          inserts.push(row);
+          insertKeys.push(key);
+          continue;
+        }
+        if (!expected) throw new Error('Não foi possível conferir a versão da entrega no banco. Sincronize novamente.');
+        const localCopy = rowToDelivery(row);
+        // A comparação acontece no UPDATE, dentro da transação do banco.
+        // Uma consulta anterior, sozinha, não impede corrida entre notebooks.
+        const updated = await client.from('deliveries').update(row)
+          .eq('user_id', currentUser.id).eq('id', row.id).eq('updated_at', expected).select('id');
+        if (updated.error) throw updated.error;
+        if (!updated.data?.length) {
+          const latest = await client.from('deliveries').select('*').eq('user_id', currentUser.id).eq('id', row.id).maybeSingle();
+          if (latest.error) throw latest.error;
+          await preserveConflict(type, 'upserts', key, batch.upserts[type][key], localCopy,
+            latest.data ? rowToDelivery(latest.data) : null, 'Entrega alterada em outro aparelho durante o envio.');
+        }
+        clearBatchEntries(batch, 'upserts', type, [key]);
+      }
+      if (inserts.length) {
+        // INSERT não sobrescreve uma linha criada por outro aparelho neste intervalo.
+        const inserted = await client.from('deliveries').insert(inserts);
+        if (inserted.error) throw inserted.error;
+        clearBatchEntries(batch, 'upserts', type, insertKeys);
+      }
+      return;
+    }
 
     const onConflict = type === 'closings' ? 'user_id,date' : 'user_id,id';
     const table = type === 'closings' ? 'daily_closings' : type;
@@ -604,13 +656,22 @@
   async function syncDeletes(batch, type) {
     const keys = activeBatchKeys(batch, 'deletes', type);
     if (!keys.length) return;
+    if (keys.length > 100) {
+      for (let start = 0; start < keys.length; start += 100) {
+        const part = clone(batch);
+        part.deletes[type] = Object.fromEntries(keys.slice(start, start + 100).map(key => [key, batch.deletes[type][key]]));
+        await syncDeletes(part, type);
+        await window.XBLocalCache?.flush();
+      }
+      return;
+    }
 
     if (type === 'deliveries') {
       for (const key of keys) {
         const result = await client.rpc('xb_delete_delivery', { p_id: key });
         if (result.error) throw result.error;
+        clearBatchEntries(batch, 'deletes', type, [key]);
       }
-      clearBatchEntries(batch, 'deletes', type, keys);
       return;
     }
 
@@ -644,7 +705,7 @@
   }
 
   async function pushPendingBatch(reason) {
-    if (!currentUser || !client || suppressCloudPush || config.autoSync === false) return false;
+    if (!currentUser || !client || suppressCloudPush || (config.autoSync === false && reason !== 'manual' && reason !== 'antes-de-fechar')) return false;
     if (!navigator.onLine) {
       updateCloudStatus('Offline · alterações guardadas no aparelho');
       return false;
@@ -661,10 +722,9 @@
         updateCloudStatus('Falha ao guardar cache local');
         return false;
       }
-      state.connected = true;
-      state.lastError = '';
+      // Fila vazia não é prova de que a conexão com o banco se recuperou.
       syncRetryDelay = 5000;
-      updateCloudStatus('Conectado');
+      updateCloudStatus();
       return true;
     }
 
@@ -894,10 +954,13 @@
     suppressCloudPush = true;
     window.__xbApplyingRemoteSnapshot = true;
     try {
-      db = window.XBDataBridge?.normalize ? window.XBDataBridge.normalize(snapshot) : snapshot;
-      if (db.settings) db.settings.password = '';
-      save();
-      if (typeof renderAll === 'function') renderAll();
+      const next = window.XBDataBridge?.normalize ? window.XBDataBridge.normalize(snapshot) : snapshot;
+      if (next.settings) next.settings.password = '';
+      if (!sameValue(db, next)) {
+        db = next;
+        save();
+        if (typeof renderAll === 'function') renderAll();
+      }
       trackedSnapshot = snapshotForDiff();
     } finally {
       suppressCloudPush = false;
@@ -1164,6 +1227,10 @@
     updateCloudStatus('Conectado · sincronizando');
     try {
       await firstSync();
+      if (!hasPending(queue) && !state.lastError) {
+        state.lastSyncAt = nowIso();
+        safeSet(LAST_SYNC_KEY, state.lastSyncAt);
+      }
       safeSet(VALIDATED_USER_KEY, user.id);
       state.connected = !state.lastError;
       state.syncing = false;
@@ -1254,6 +1321,7 @@
     if (!user) {
       currentUser = null;
       showLoginOnly();
+      state.connected = false;
       updateCloudStatus('Conectado · faça login');
       return;
     }
@@ -1265,6 +1333,18 @@
     await pullRemoteSnapshot('online');
     subscribeRealtime();
     safeSet(VALIDATED_USER_KEY, user.id);
+  }
+
+  async function healthCheck() {
+    if (!currentUser || !navigator.onLine || document.hidden || pushInFlight || pullInFlight) return;
+    try {
+      // Reconcilia também após suspensão do notebook ou perda silenciosa do realtime.
+      await pullRemoteSnapshot('verificacao');
+    } catch (error) {
+      state.connected = false;
+      state.lastError = String(error?.message || error);
+      updateCloudStatus('Reconexão pendente · alterações preservadas');
+    }
   }
 
   async function boot() {
@@ -1280,6 +1360,7 @@
     updateCloudStatus('Conectando...');
     await loadSupabaseLibrary();
     client = window.supabase.createClient(config.projectUrl, config.publishableKey, {
+      ...(window.XBCloudTransport?.fetch ? { global: { fetch: window.XBCloudTransport.fetch } } : {}),
       auth: {
         storageKey: AUTH_STORAGE_KEY,
         persistSession: true,
@@ -1301,9 +1382,14 @@
 
     installSaveBridge();
     installAuthBridge();
+    setInterval(healthCheck, 120000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) healthCheck(); });
+    window.addEventListener('focus', healthCheck);
 
     window.addEventListener('online', () => recoverOnline().catch(error => {
       console.error('[X-Burguer] Falha ao recuperar conexão:', error);
+      state.connected = false;
+      state.lastError = String(error?.message || error);
       updateCloudStatus('Falha ao reconectar · alterações preservadas');
     }));
     window.addEventListener('offline', () => {
